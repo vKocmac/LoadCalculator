@@ -117,7 +117,7 @@
         <div class="grid cols-3" style="margin-top:8px">
           <div><label>Μήκος προς μη θερμαινόμενο (m)</label><input id="LwallUnh" type="number" step="0.1" value="0"></div>
           <div><label>T γειτονικού μη θερμ. (°C)</label><input id="Tadj" type="number" step="0.5" value="30"></div>
-          <div><label>Ύψος χώρου (από πάνω)</label><input type="number" value="2.8" disabled></div>
+          <div><label>Ύψος χώρου (από πάνω)</label><input id="H_display" type="number" value="2.8" disabled></div>
         </div>
       </div>
 
@@ -609,6 +609,11 @@
     bindCustomToggle('UwinPreset','UwinCustom');
     bindCustomToggle('UroofPreset','UroofCustom');
     bindCustomToggle('UfloorPreset','UfloorCustom');
+
+    // Sync "Ύψος χώρου (από πάνω)" με το H
+    const syncHDisplay = ()=>{ const hEl=$('H'); const hd=$('H_display'); if(hEl && hd){ hd.value = hEl.value; } };
+    on('H','input', syncHDisplay);
+    syncHDisplay();
 
     // Initial calc
     applyCityAndMode();
