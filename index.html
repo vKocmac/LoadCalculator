@@ -930,5 +930,239 @@
   });
 })();
 </script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const val = (id, d='') => ($(id)?.value ?? d);
+  const num = (id, d=0) => { const v = parseFloat(val(id)); return isNaN(v)?d:v; };
+  const txtSel = sel => {
+    const el = document.querySelector(sel);
+    return el?.options ? el.options[el.selectedIndex].text : (el?.textContent||'');
+  };
+
+  // --- 1) Πίτα με ΜΑΥΡΑ labels ΜΟΝΟ στο PDF (δεν αλλάζει το UI)
+  function getPieImageBlackLabels(){
+    const src = $('pie');
+    if(!src || !src.width || !src.height) return '';
+    const off = document.createElement('canvas');
+    off.width = src.width; off.height = src.height;
+    const ctx = off.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+    const imgData = ctx.getImageData(0, 0, off.width, off.height);
+    const d = imgData.data;
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      const lum = 0.2126*r + 0.7152*g + 0.0722*b; // perceived luminance
+      if(lum > 200){ d[i]=d[i+1]=d[i+2]=0; } // πολύ ανοιχτό → μαύρο
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return off.toDataURL('image/png');
+  }
+
+  // --- 2) Πλήρες μπλοκ ΕΙΣΟΔΩΝ (Design Data)
+  function buildFullInputsHTML(){
+    const L=num('L'), W=num('W'), H=num('H'), V=L*W*H;
+    const Uwall = (val('UwallPreset')==='custom')? val('UwallCustom'):val('UwallPreset');
+    const Uroof = (val('UroofPreset')==='custom')? val('UroofCustom'):val('UroofPreset');
+    const Ufloor = (val('UfloorPreset')==='custom')? val('UfloorCustom'):val('UfloorPreset');
+    const Uwin  = (val('UwinPreset')==='custom') ? val('UwinCustom') : val('UwinPreset');
+    const SHGC  = val('SHGCpreset');
+
+    const winRows = [...document.querySelectorAll('#winTable tbody tr')].map(tr=>{
+      const o = tr.querySelector('.wg-orient')?.value||'';
+      const a = tr.querySelector('.wg-area')?.value||'';
+      const s = tr.querySelector('.wg-shade')?.value||'';
+      return `<tr><td>${o}</td><td class="r">${a}</td><td class="r">${s}</td></tr>`;
+    }).join('');
+
+    return `
+      <h2>Είσοδοι (Design Data)</h2>
+      <div class="grid-2">
+        <table>
+          <tr><th colspan="2">Γενικά</th></tr>
+          <tr><td>Λειτουργία</td><td class="r">${val('Mode')==='cool'?'Ψύξη':'Θέρμανση'}</td></tr>
+          <tr><td>Μονάδες</td><td class="r">${val('Units','W')}</td></tr>
+
+          <tr><th colspan="2">Γεωμετρία</th></tr>
+          <tr><td>L × W × H (m)</td><td class="r">${L} × ${W} × ${H}</td></tr>
+          <tr><td>Όγκος V (m³)</td><td class="r">${isFinite(V)?V.toFixed(2):'—'}</td></tr>
+
+          <tr><th colspan="2">Συνθήκες</th></tr>
+          <tr><td>Εσωτερικό</td><td class="r">${val('Tin')} °C, ${val('RHin')}%</td></tr>
+          <tr><td>Εξωτερικό</td><td class="r">${val('Tout')} °C, ${val('RHout')}%</td></tr>
+          <tr><td>Πόλη (preset)</td><td class="r">${txtSel('#city')}</td></tr>
+
+          <tr><th colspan="2">Αερισμοί</th></tr>
+          <tr><td>Διείσδυση</td><td class="r">${val('ACHinf')} ACH</td></tr>
+          <tr><td>Φυσικός</td><td class="r">${val('ACHnat')} ACH</td></tr>
+          <tr><td>Μηχανικός</td><td class="r">${
+            val('MechMode')==='ach' ? (val('ACHmech')+' ACH') : (val('Qmech')+' m³/h')
+          }</td></tr>
+        </table>
+
+        <table>
+          <tr><th colspan="2">Τοίχοι</th></tr>
+          <tr><td>Uwall (W/m²K)</td><td class="r">${Uwall}</td></tr>
+          <tr><td>Μήκος προς εξ./μη θερμ. (m)</td><td class="r">${val('LwallExt')} / ${val('LwallUnh')}</td></tr>
+          <tr><td>T γειτονικού (°C)</td><td class="r">${val('Tadj')}</td></tr>
+
+          <tr><th colspan="2">Οροφή</th></tr>
+          <tr><td>Uroof (W/m²K)</td><td class="r">${Uroof}</td></tr>
+          <tr><td>% εξ./μη θερμ./θερμ.</td><td class="r">${val('RoofPctExt')}% / ${val('RoofPctUnh')}% / ${val('RoofPctHeated')}%</td></tr>
+          <tr><td>T σοφίτας (°C)</td><td class="r">${val('Tattic')}</td></tr>
+
+          <tr><th colspan="2">Δάπεδο</th></tr>
+          <tr><td>Ufloor (W/m²K)</td><td class="r">${Ufloor}</td></tr>
+          <tr><td>% έδαφος/μη θερμ./θερμ.</td><td class="r">${val('FloorPctGround')}% / ${val('FloorPctUnh')}% / ${val('FloorPctHeated')}%</td></tr>
+          <tr><td>T εδάφους (°C)</td><td class="r">${val('Tground')}</td></tr>
+
+          <tr><th colspan="2">Παράθυρα</th></tr>
+          <tr><td>Uwin (W/m²K)</td><td class="r">${Uwin}</td></tr>
+          <tr><td>SHGC</td><td class="r">${SHGC}</td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Ομάδες Παραθύρων</h3>
+        <table>
+          <tr><th>Προσανατολισμός</th><th class="r">m²</th><th class="r">Σκίαση</th></tr>
+          ${winRows || '<tr><td colspan="3" class="muted">—</td></tr>'}
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Εσωτερικά Κέρδη</h3>
+        <table>
+          <tr><th>Παράμετρος</th><th class="r">Τιμή</th></tr>
+          <tr><td>Άτομα</td><td class="r">${val('nPeople')}</td></tr>
+          <tr><td>Δραστηριότητα (S/L)</td><td class="r">${val('PeopleActivity')}</td></tr>
+          <tr><td>Φωτισμός (W/m²)</td><td class="r">${val('LightingWm2')}</td></tr>
+        </table>
+      </div>
+    `;
+  }
+
+  // --- 3) Παραδοχές & Τύποι (συνοπτικά)
+  function buildAssumptions(){
+    return `
+      <div class="section">
+        <h2>Παραδοχές & Τύποι</h2>
+        <div class="grid-2">
+          <div class="kpi">ρ=1.2 kg/m³, c<sub>p</sub>=1.006 kJ/kgK, P<sub>atm</sub>=101.325 kPa</div>
+          <div class="kpi">Q = U · A · ΔT</div>
+        </div>
+        <div class="grid-2" style="margin-top:8px">
+          <div class="kpi">V̇ = ((ACH<sub>inf</sub>+ACH<sub>nat</sub>+ACH<sub>mech</sub>)·V)/3600 + Q<sub>mech</sub>/3600</div>
+          <div class="kpi">ṁ = ρ·V̇,  w = 0.62198·P<sub>v</sub>/(P<sub>atm</sub>−P<sub>v</sub>),  h = 1.006T + w(2501+1.86T)</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // --- 4) Export PDF (πλήρες)
+  function exportPDF_full(){
+    const resultEl = $('result');
+    if(!resultEl || !resultEl.innerHTML.trim()){ alert('Πάτησε πρώτα «Υπολογισμός».'); return; }
+
+    const w = window.open('', '_blank'); if(!w){ alert('Επέτρεψε popups.'); return; }
+
+    const modeTxt = (val('Mode')==='cool')? 'Ψύξη':'Θέρμανση';
+    const now = new Date().toLocaleString();
+
+    const css = `
+      <style>
+        *{box-sizing:border-box}
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#111;margin:0;padding:16px}
+        h1,h2,h3{margin:0 0 8px} h1{font-size:18px} h2{font-size:15px} h3{font-size:13px}
+        .section{margin:12px 0 16px}
+        .muted{color:#666}.small{font-size:11px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top}
+        th{background:#f6f7fb;text-align:left}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .kpi{border:1px dashed #bbb;padding:8px;border-radius:8px;font-size:12px}
+        .pagebreak{page-break-before:always}
+        .hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
+        .chip{display:inline-block;padding:2px 8px;border:1px solid #999;border-radius:999px;font-size:10px;color:#333}
+        .note{background:#fff3cd;border:1px solid #ffe08a;padding:8px;border-radius:6px;font-size:12px;color:#6b5600}
+        .rowline{display:flex;align-items:center;gap:10px;border-bottom:1px dashed #e5e7ef;padding:6px 0;margin:0}
+        .rowline span:first-child{flex:1;min-width:0}
+        .rowline span:last-child{flex:0 0 140px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#0c0f17}
+        .r{text-align:right;font-variant-numeric:tabular-nums}
+        @media print{ body{padding:12mm} }
+      </style>
+    `;
+
+    // Πίτα με μαύρα labels
+    const pieURL = getPieImageBlackLabels();
+    const pieHTML = pieURL
+      ? `<div class="section"><h3>Κατανομή φορτίων</h3><img src="${pieURL}" style="max-width:100%;height:auto;border:1px solid #ddd;border-radius:8px;image-rendering:crisp-edges"/></div>`
+      : '';
+
+    // Ψυχρομετρία (αν υπάρχει)
+    const psychroHTML = ($('psychroMix')?.innerHTML.trim()
+        || `<div class="note">Δεν υπάρχουν διαθέσιμα δεδομένα ψυχρομετρίας.</div>`);
+
+    const page1 = `
+      <div class="hdr">
+        <div>
+          <h1>Αναφορά Υπολογισμού Φορτίων & Ψυχρομετρίας</h1>
+          <div class="muted small">${now}</div>
+        </div>
+        <div class="chip">${modeTxt}</div>
+      </div>
+
+      ${buildFullInputsHTML()}
+      ${buildAssumptions()}
+
+      <div class="section">
+        <h2>Αποτελέσματα Φορτίων</h2>
+        ${resultEl.innerHTML}
+      </div>
+
+      ${pieHTML}
+    `;
+
+    const page2 = `
+      <div class="pagebreak"></div>
+      <h2>Ψυχρομετρική Ανάλυση</h2>
+      ${psychroHTML}
+    `;
+
+    w.document.open();
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${css}</head><body>${page1}${page2}</body></html>`);
+    w.document.close();
+    setTimeout(()=>{ w.focus(); w.print(); }, 250);
+  }
+
+  // --- 5) Κουμπιά «Εξαγωγή σε PDF» (δίπλα στο Υπολογισμός + στην ψυχρομετρία)
+  function ensureExportButtons(){
+    const calcBtn = $('btnCalc');
+    if(calcBtn && !$('btnPDF_full')){
+      const b = document.createElement('button');
+      b.id='btnPDF_full'; b.className='btn ghost'; b.textContent='Εξαγωγή σε PDF';
+      b.style.marginLeft='8px';
+      calcBtn.parentElement.appendChild(b);
+      b.addEventListener('click', exportPDF_full);
+    }
+    const recalcBtn = [...document.querySelectorAll('button')].find(x => (x.textContent||'').includes('Επαναυπολογισμός μίξης'));
+    if(recalcBtn && !$('btnPDF_full_psy')){
+      const b = document.createElement('button');
+      b.id='btnPDF_full_psy'; b.className='btn ghost'; b.textContent='Εξαγωγή σε PDF';
+      b.style.marginLeft='8px';
+      recalcBtn.parentElement.appendChild(b);
+      b.addEventListener('click', exportPDF_full);
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', ensureExportButtons);
+  } else {
+    ensureExportButtons();
+  }
+  new MutationObserver(ensureExportButtons).observe(document.body, {childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
+<script>
