@@ -40,9 +40,15 @@
 </head>
 <body>
   <div class="wrap">
+    <!-- Tabs bar (non-intrusive) -->
+    <div id="tabsBar" class="tabs" style="position:sticky;top:0;z-index:50;margin-bottom:10px;display:flex;gap:6px;align-items:center;">
+      <button id="tabLoads" class="btn ghost" style="border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:#0d1326;color:var(--ink)">Φορτία</button>
+      <button id="tabPsychro" class="btn ghost" style="border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:#0d1326;color:var(--ink)">Ψυχρομετρία (beta)</button>
+      
+    </div>
     <div class="card">
-      <h1>Υπολογισμός Φορτίων – Ψύξη / Θέρμανση</h1>
-      <div class="sub">Στόχος: σωστό <strong>αισθητό/λανθάνον</strong> και καθαρό breakdown ανά κατηγορία. <span class="chip">Mobile‑friendly</span></div>
+      <h1>Υπολογισμός Φορτίων / Απωλειών – Ψύξη / Θέρμανση</h1>
+    
 
       <!-- Λειτουργία -->
       <div class="section">
@@ -267,7 +273,7 @@
             <div><label>Duty/Simultaneity (0–1)</label><input id="CustomDuty" type="number" step="0.05" value="1"></div>
             <div><label>—</label><button class="btn ghost" id="addCustom">Προσθήκη custom</button></div>
           </div>
-          <div class="muted" style="margin-top:6px">Για <strong>μοτέρ</strong>: θερμότητα στο χώρο ≈ P<sub>nom</sub>/η. Default η≈0.83 ⇒ 1000 W → ~1200 W. Μπορείς να αλλάξεις duty.</div>
+          <div class="muted" style="margin-top:6px">Για <strong>μοτέρ</strong>: θερμότητα στο χώρο ≈ P<sub>nom</sub>/η. Default η≈0.83 * Duty.</div>
         </div>
       </div>
 
@@ -551,8 +557,8 @@
         const note = mode==='cool'? '' : `<div class="warn">Στη θέρμανση αγνοούνται εσωτερικά κέρδη (άνθρωποι/φωτισμός/συσκευές) και ηλιακά στα παράθυρα. Υπολογίζονται μόνο απώλειες μεταφοράς/αγωγιμότητας και αερισμός/διείσδυση (αισθητό).</div>`;
 
         const sumsBlock = `<div class="section"><h2>Σύνολα</h2>
-            <div class="rowline"><span>Συνολικό Αισθητό</span><span>${toU(Qsens)}</span></div>
-            <div class="rowline"><span>Συνολικό Λανθάνον</span><span>${toU(Qlat)}</span></div>
+            <div class="rowline"><span>Συνολικό Αισθητό</span><span id="sumQsVal" data-w="${Qsens}">${toU(Qsens)}</span></div>
+            <div class="rowline"><span>Συνολικό Λανθάνον</span><span id="sumQlVal" data-w="${Qlat}">${toU(Qlat)}</span></div>
           </div>`;
 
         const mechBlock = (Vdot_mech>0)
@@ -635,6 +641,293 @@
   } else {
     run();
   }
+})();
+</script>
+
+<!-- Ψυχρομετρικό overlay (δεν επηρεάζει τη σελίδα φορτίων) -->
+<div id="psychroPane" style="display:none;position:fixed;inset:16px;z-index:999;background:linear-gradient(180deg,#181e32 0%,var(--card) 100%);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:auto;padding:14px">
+  <div class="flex" style="justify-content:space-between;align-items:center">
+    <h2 style="margin:0">Ψυχρομετρία – Σύνοψη δεδομένων</h2>
+    <button id="closePsychro" class="btn ghost" style="width:auto;padding:8px 12px">← Επιστροφή στα Φορτία</button>
+  </div>
+  <div class="muted" style="margin:6px 0 12px">Τραβάει live τα input από τη σελίδα των φορτίων. Δεν αλλάζει τίποτα στον αρχικό υπολογισμό.</div>
+  <div id="psychroSummary" class="card" style="margin-bottom:12px"></div>
+  <div class="card" style="margin-top:8px">
+  <h3 style="margin:0 0 8px;font-size:1rem">Παράμετροι Μίξης & Στοιχείου</h3>
+  <div class="grid cols-3">
+    <div>
+      <label>Κατάσταση προσαγωγής – Τρόπος</label>
+      <select id="PS_Mode">
+        <option value="fixT" selected>Σταθερή Tsa</option>
+        <option value="fixRH">Σταθερό RHsa% (με γνωστό SA)</option>
+      </select>
+    </div>
+    <div>
+      <label>T προσαγωγής Tsa (°C)</label>
+      <input id="PS_Tsa" type="number" step="0.1" value="14">
+    </div>
+    <div>
+      <label>RH προσαγωγής</label>
+      <select id="PS_SA_RH_mode">
+        <option value="sat" selected>Κορεσμός 100%</option>
+        <option value="roomw">Ίδιο w με χώρου</option>
+        <option value="manual">Χειροκίνητο %</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid cols-3" style="margin-top:8px">
+    <div>
+      <label>RHsa (%) όταν είναι χειροκίνητο</label>
+      <input id="PS_RHsa" type="number" step="1" value="95">
+    </div>
+    <div>
+      <label>Παροχή SA (m³/h) – προαιρετικό</label>
+      <input id="PS_SA_manual" type="number" step="10" value="">
+    </div>
+    <div>
+      <label>Υπερπαροχή/υπερπίεση (m³/h)</label>
+      <input id="PS_Pressurization" type="number" step="10" value="0">
+    </div>
+  </div>
+  <div class="grid cols-3" style="margin-top:8px">
+    <div class="flex" style="align-items:flex-end">
+      <button id="PS_Suggest_T" class="btn ghost" style="width:auto">Πρόταση Tsa</button>
+      <span class="chip">από Qs & παροχή</span>
+    </div>
+    <div class="flex" style="align-items:flex-end">
+      <button id="PS_Suggest_RH" class="btn ghost" style="width:auto">Πρόταση RHsa</button>
+      <span class="chip">τυπικά 90–100%</span>
+    </div>
+    <div>
+      <button id="PS_Recalc" class="btn primary">Επαναυπολογισμός μίξης/στοιχείου</button>
+    </div>
+  </div>
+</div>
+<div id="psychroMix" class="card" style="margin:12px 0"></div>
+</div>
+
+<script>
+// --- Lightweight tabs/overlay wiring (δεν αγγίζει την υπάρχουσα calc) ---
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  const pane = $('psychroPane');
+  const btnOpen = $('tabPsychro');
+  const btnClose = $('closePsychro');
+  const btnLoads = $('tabLoads');
+  const summary = $('psychroSummary');
+
+  function fmt(x, unit){ return unit==='kW' ? (x/1000).toFixed(2)+' kW' : Math.round(x)+' W'; }
+
+  // Μικρός τοπικός υπολογισμός μόνο για ψυχρομετρική σύνοψη
+  function snapshot(){
+    try {
+      const rho=1.2, cp=1.006, Patm=101.325;
+      const esat = T => 0.61078*Math.exp((17.27*T)/(T+237.3));
+      const w = (T,RH)=>{ const Pv=(RH/100)*esat(T); return 0.62198*Pv/(Patm-Pv); };
+      const h = (T,wr)=>1.006*T + wr*(2501 + 1.86*T);
+
+      const Units = document.getElementById('Units')?.value || 'W';
+      const Mode  = document.getElementById('Mode')?.value || 'cool';
+      const L = parseFloat(document.getElementById('L')?.value||0);
+      const Wm= parseFloat(document.getElementById('W')?.value||0);
+      const H = parseFloat(document.getElementById('H')?.value||0);
+      const V = L*Wm*H;
+
+      const Tin = parseFloat(document.getElementById('Tin')?.value||24);
+      const RHin= parseFloat(document.getElementById('RHin')?.value||45);
+      const Tout = parseFloat(document.getElementById('Tout')?.value||36);
+      const RHout= parseFloat(document.getElementById('RHout')?.value||40);
+
+      const MechMode = document.getElementById('MechMode')?.value || 'ach';
+      const ACHmech = (MechMode==='ach') ? parseFloat(document.getElementById('ACHmech')?.value||0) : 0;
+      const Qmech_m3h = (MechMode==='flow') ? parseFloat(document.getElementById('Qmech')?.value||0) : 0;
+
+      const Vdot_mech = (ACHmech*V/3600) + (Qmech_m3h/3600); // m³/s
+      const mdot_mech = Vdot_mech * rho; // kg/s
+
+      const win = w(Tin,RHin), wout = w(Tout,RHout);
+      const hin = h(Tin,win), hout = h(Tout,wout);
+
+      const dT = Math.abs(Tout - Tin);
+      const Qmech_sens = mdot_mech * cp * dT * 1000; // W
+      const Qmech_total = (Mode==='cool') ? mdot_mech * Math.max(0,(hout-hin)) * 1000 : 0; // W
+      const Qmech_lat = (Mode==='cool') ? Math.max(0, Qmech_total - Qmech_sens) : 0;
+
+      // Πάρε «Συνολικό Αισθητό/Λανθάνον» από το ήδη rendered αποτέλεσμα (χωρίς να ξαναγράφουμε calc)
+      let Qsens=NaN, Qlat=NaN, Qtotal=NaN;
+      const txt = document.getElementById('result')?.innerText||'';
+      const m = txt.match(/Συνολικό Αισθητό\s+(\d+(?:\.\d+)?)\s*(kW|W)[\s\S]*?Συνολικό Λανθάνον\s+(\d+(?:\.\d+)?)\s*(kW|W)/);
+      if(m){
+        const sVal = parseFloat(m[1]); const sUnit = m[2];
+        const lVal = parseFloat(m[3]); const lUnit = m[4];
+        Qsens = (sUnit==='kW')? sVal*1000 : sVal;
+        Qlat  = (lUnit==='kW')? lVal*1000 : lVal;
+        Qtotal = Qsens + Qlat;
+      }
+      return {Units,Mode, Tin,RHin,win,hin, Tout,RHout,wout,hout, Vdot_mech,mdot_mech, Qmech_sens,Qmech_lat, Qsens,Qlat,Qtotal};
+    } catch { return null; }
+  }
+
+  function renderSummary(){
+    const s = snapshot();
+    if(!s){ summary.innerHTML = '<div class="warn">Δεν ήταν δυνατή η δημιουργία σύνοψης.</div>'; return; }
+    const U = s.Units;
+    summary.innerHTML = `
+      <div class="grid cols-3">
+        <div class="kpi"><div class="muted">Εσωτερικό (RA)</div><b>${s.Tin.toFixed(1)} °C / ${s.RHin.toFixed(0)}% RH</b><div>w=${s.win.toFixed(4)} kg/kg</div><div>h=${s.hin.toFixed(1)} kJ/kg</div></div>
+        <div class="kpi"><div class="muted">Εξωτερικό (OA)</div><b>${s.Tout.toFixed(1)} °C / ${s.RHout.toFixed(0)}% RH</b><div>w=${s.wout.toFixed(4)} kg/kg</div><div>h=${s.hout.toFixed(1)} kJ/kg</div></div>
+        <div class="kpi"><div class="muted">Νωπός αέρας (μηχανικός)</div><b>${(s.Vdot_mech*3600).toFixed(0)} m³/h</b><div>ṁ=${s.mdot_mech.toFixed(3)} kg/s</div><div>Qs=${fmt(s.Qmech_sens,U)} · Ql=${fmt(s.Qmech_lat,U)}</div></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:10px">
+        <div class="kpi"><div class="muted">Σύνολα Φορτίων</div><b>${fmt(s.Qtotal||0, U)}</b><div>Αισθητό: ${fmt(s.Qsens||0, U)} · Λανθάνον: ${fmt(s.Qlat||0, U)}</div></div>
+        <div class="kpi"><div class="muted">SHR (Room)</div><b>${(s.Qsens && s.Qtotal? (s.Qsens/(s.Qtotal))*100:0).toFixed(1)}%</b><div>Room SHR = Qs/(Qs+Ql)</div></div>
+      </div>
+    `;
+  }
+
+  function openPane(){ renderSummary(); pane.style.display='block'; }
+  function closePane(){ pane.style.display='none'; }
+
+  if(btnOpen)  btnOpen.addEventListener('click', openPane);
+  if(btnClose) btnClose.addEventListener('click', closePane);
+  if(btnLoads) btnLoads.addEventListener('click', closePane);
+})();
+</script>
+
+<script>
+// Νέος υπολογισμός μίξης & στοιχείου χωρίς regex.
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  const pane = $('psychroPane');
+  const out = $('psychroMix');
+
+  // βασικές συναρτήσεις
+  const rho=1.2, cp=1.006, Patm=101.325;
+  const esat = T => 0.61078*Math.exp((17.27*T)/(T+237.3));
+  const wTRH = (T,RH)=>{ const Pv=(RH/100)*esat(T); return 0.62198*Pv/(Patm-Pv); };
+  const hTw  = (T,w)=> 1.006*T + w*(2501 + 1.86*T);
+  const T_hw = (h,w)=> (h - 2501*w) / (1.006 + 1.86*w);
+  const RH_Tw = (T,w)=>{ const Pv=(w*Patm)/(0.62198+w); const Ps=esat(T); return Math.max(0,Math.min(100,100*Pv/Ps)); };
+  const fmtW = x => (document.getElementById('Units').value==='kW') ? (x/1000).toFixed(2)+' kW' : Math.round(x)+' W';
+
+  function roomData(){
+    const Mode=document.getElementById('Mode')?.value||'cool';
+    const Tin = parseFloat(document.getElementById('Tin')?.value||24);
+    const RHin= parseFloat(document.getElementById('RHin')?.value||45);
+    const Tout=parseFloat(document.getElementById('Tout')?.value||36);
+    const RHout=parseFloat(document.getElementById('RHout')?.value||40);
+    const L=parseFloat(document.getElementById('L')?.value||0);
+    const Wm=parseFloat(document.getElementById('W')?.value||0);
+    const H=parseFloat(document.getElementById('H')?.value||0);
+    const V=L*Wm*H;
+    const MechMode=document.getElementById('MechMode')?.value||'ach';
+    const ACHmech=(MechMode==='ach')? parseFloat(document.getElementById('ACHmech')?.value||0):0;
+    const Qmech_m3h=(MechMode==='flow')? parseFloat(document.getElementById('Qmech')?.value||0):0;
+    const Voa_m3s=(ACHmech*V/3600)+(Qmech_m3h/3600);
+
+    // από τα σύνολα που ήδη renderάρονται, μέσω data attributes
+    const qsSpan=document.getElementById('sumQsVal');
+    const qlSpan=document.getElementById('sumQlVal');
+    const Qsens = qsSpan? parseFloat(qsSpan.getAttribute('data-w')||'NaN') : NaN;
+    const Qlat  = qlSpan? parseFloat(qlSpan.getAttribute('data-w')||'NaN') : NaN;
+    return {Mode,Tin,RHin,Tout,RHout,Voa_m3s,Qsens,Qlat};
+  }
+
+  function compute(){
+    const R = roomData();
+    if(R.Mode!=="cool"){ out.innerHTML='<div class="warn">Η ανάλυση στοιχείου ενεργή μόνο σε Ψύξη.</div>'; return; }
+    if(!isFinite(R.Qsens)){ out.innerHTML='<div class="warn">Πάτησε «Υπολογισμός» στα Φορτία για να έχουμε Qs/Ql.</div>'; return; }
+
+    const Tsa_in = parseFloat(($('PS_Tsa')?.value)||14);
+    const RHmode = $('PS_SA_RH_mode')?.value||'sat';
+    const RHsa_man = parseFloat(($('PS_RHsa')?.value)||95);
+    const SA_m3h_in = parseFloat(($('PS_SA_manual')?.value)||'');
+    const press_m3h = parseFloat(($('PS_Pressurization')?.value)||0);
+    const modeSel = $('PS_Mode')?.value||'fixT';
+
+    const win  = wTRH(R.Tin,  R.RHin);
+    const wout = wTRH(R.Tout, R.RHout);
+    const hin  = hTw(R.Tin,  win);
+    const hout = hTw(R.Tout, wout);
+
+
+    // Υπόθεση: αν δεν δώθηκε SA, θα προκύψει από Qsens και Tsa
+    let Vsa_m3s;
+    if(isFinite(SA_m3h_in) && SA_m3h_in>0){ Vsa_m3s = SA_m3h_in/3600; }
+    else { const mdot_sa = R.Qsens/(cp*1000*Math.max(0.1,(R.Tin - Tsa_in))); Vsa_m3s = mdot_sa/rho; }
+
+    const Voa_m3s = Math.max(0,R.Voa_m3s);
+    const Vrec_m3s = Math.max(0,Vsa_m3s - Voa_m3s);
+    const mdot_oa=Voa_m3s*rho, mdot_ra=Vrec_m3s*rho, mdot_sa=Vsa_m3s*rho;
+
+    const wmix=(mdot_oa*wout + mdot_ra*win)/Math.max(1e-9,(mdot_oa+mdot_ra));
+    const hmix=(mdot_oa*hout + mdot_ra*hin)/Math.max(1e-9,(mdot_oa+mdot_ra));
+    const Tmix=T_hw(hmix,wmix);
+    const RHmix=RH_Tw(Tmix,wmix);
+
+    let Tsa=Tsa_in, wsa, RHsa, hsa;
+    if(modeSel==='fixT'){
+      if(RHmode==='sat'){ RHsa=100; wsa=wTRH(Tsa,100); }
+      else if(RHmode==='roomw'){ wsa=win; RHsa=RH_Tw(Tsa,wsa); }
+      else { const r=Math.max(5,Math.min(100,RHsa_man)); RHsa=r; wsa=wTRH(Tsa,r); }
+      hsa=hTw(Tsa,wsa);
+    } else { // fixRH
+      if(!(isFinite(SA_m3h_in)&&SA_m3h_in>0)){ out.innerHTML='<div class="warn">Για σταθερό RHsa% δώσε παροχή SA (m³/h).</div>'; return; }
+      const r=Math.max(5,Math.min(100,RHsa_man));
+      Tsa = Tmix - (R.Qsens/(mdot_sa*cp*1000));
+      wsa=wTRH(Tsa,r); RHsa=r; hsa=hTw(Tsa,wsa);
+    }
+
+    const Qcoil_tot = mdot_sa * Math.max(0,(hmix - hsa)) * 1000;
+    const Qcoil_sens = mdot_sa * Math.max(0,(Tmix - Tsa)) * cp * 1000;
+    const Qcoil_lat = Math.max(0,Qcoil_tot - Qcoil_sens);
+
+    const Vsa_m3h=Vsa_m3s*3600, Voa_m3h=Voa_m3s*3600, Vrec_m3h=Vrec_m3s*3600;
+    const exhaust_m3h = Math.max(0, Voa_m3h - press_m3h);
+    const return_m3h  = Math.max(0, Vsa_m3h - exhaust_m3h);
+
+    out.innerHTML = `
+      <div class="grid cols-3">
+        <div class="kpi"><div class="muted">Παροχή προσαγωγής (SA)</div><b>${Vsa_m3h.toFixed(0)} m³/h</b><div>OA% στο Mix: ${((Voa_m3h/Math.max(1,Vsa_m3h))*100).toFixed(1)}%</div></div>
+        <div class="kpi"><div class="muted">Mix @ coil inlet</div><b>${Tmix.toFixed(1)} °C</b><div>RH≈${RHmix.toFixed(0)}% · w=${wmix.toFixed(4)} kg/kg</div><div>h=${hmix.toFixed(1)} kJ/kg</div></div>
+        <div class="kpi"><div class="muted">Supply (SA)</div><b>${Tsa.toFixed(1)} °C / ${RHsa.toFixed(0)}% RH</b><div>w=${wsa.toFixed(4)} kg/kg</div><div>h=${hsa.toFixed(1)} kJ/kg</div></div>
+      </div>
+      <div class="grid cols-3" style="margin-top:10px">
+        <div class="kpi"><div class="muted">Coil Load</div><b>${fmtW(Qcoil_tot)}</b><div>Qs=${fmtW(Qcoil_sens)} · Ql=${fmtW(Qcoil_lat)}</div></div>
+        <div class="kpi"><div class="muted">Επιστροφή/Εξαγωγή</div><b>Return ≈ ${return_m3h.toFixed(0)} m³/h</b><div>Exhaust ≈ ${exhaust_m3h.toFixed(0)} m³/h</div></div>
+        <div class="kpi"><div class="muted">Έλεγχος</div><b>${(Math.abs(Vsa_m3h - (Voa_m3h+Vrec_m3h))<1e-6)?'OK':'Check flows'}</b><div>SA = OA + Recirc</div></div>
+      </div>`;
+  }
+
+  function suggestT(){
+    const R=roomData(); if(R.Mode!=='cool') return;
+    const SA_m3h_in=parseFloat(($('PS_SA_manual')?.value)||''); if(!(isFinite(SA_m3h_in)&&SA_m3h_in>0)) return;
+    const win=wTRH(R.Tin,R.Hin), wout=wTRH(R.Tout,R.RHout);
+    const hin=hTw(R.Tin,win), hout=hTw(R.Tout,wout);
+    const Vsa=SA_m3h_in/3600, Voa=Math.max(0,R.Voa_m3s), Vrec=Math.max(0,Vsa - Voa);
+    const mdot_oa=Voa*rho, mdot_ra=Vrec*rho; const mdot_sa=Vsa*rho;
+    const wmix=(mdot_oa*wout + mdot_ra*win)/Math.max(1e-9,(mdot_oa+mdot_ra));
+    const hmix=(mdot_oa*hout + mdot_ra*hin)/Math.max(1e-9,(mdot_oa+mdot_ra));
+    const Tmix=T_hw(hmix,wmix);
+    const Tsa = Tmix - (R.Qsens/(mdot_sa*cp*1000));
+    const el=$('PS_Tsa'); if(el) el.value = (isFinite(Tsa)?Tsa:(R.Tin-10)).toFixed(1);
+  }
+
+  // κουμπιά
+  const openBtn=document.getElementById('tabPsychro');
+  const closeBtn=document.getElementById('closePsychro');
+  const loadsBtn=document.getElementById('tabLoads');
+  openBtn?.addEventListener('click', ()=>{ compute(); });
+  $('PS_Recalc')?.addEventListener('click', compute);
+  $('PS_Suggest_T')?.addEventListener('click', ()=>{ suggestT(); compute(); });
+  $('PS_Suggest_RH')?.addEventListener('click', ()=>{ const el=$('PS_RHsa'); if(el) el.value='95'; compute(); });
+
+  // live refresh όταν αλλάζουν βασικά inputs κι είναι ανοιχτό
+  ['Units','Mode','Tin','RHin','Tout','RHout','ACHmech','Qmech','MechMode','btnCalc'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    const fn=()=>{ if(pane && pane.style.display==='block') compute(); };
+    el.addEventListener('change', fn); el.addEventListener('click', fn);
+  });
 })();
 </script>
 </body>
