@@ -663,6 +663,14 @@
       </select>
     </div>
     <div>
+      <label>Coil model (ADP/BF)</label>
+      <select id="PS_CoilModel">
+        <option value="none" selected>Use Supply state (Tsa/RHsa)</option>
+        <option value="rows">Give Rows → estimate ADP/BF</option>
+      </select>
+    </div>
+
+    <div>
       <label>T προσαγωγής Tsa (°C)</label>
       <input id="PS_Tsa" type="number" step="0.1" value="14">
     </div>
@@ -675,6 +683,31 @@
       </select>
     </div>
   </div>
+
+  <div class="grid cols-3" id="PS_rows_block" style="margin-top:8px; display:none;">
+    <div>
+      <label>Σειρές (rows)</label>
+      <select id="PS_rows">
+        <option value="2">2</option>
+        <option value="3" selected>3</option>
+        <option value="4">4</option>
+        <option value="6">6</option>
+      </select>
+    </div>
+    <div>
+      <label>FPI (fins/in) – προαιρετικό</label>
+      <select id="PS_fpi">
+        <option value="8">8</option>
+        <option value="10" selected>10</option>
+        <option value="12">12</option>
+      </select>
+    </div>
+    <div>
+      <label>Ταχύτητα προσώπου (m/s) – προαιρετικό</label>
+      <input id="PS_faceV" type="number" step="0.1" value="2.0">
+    </div>
+  </div>
+
   <div class="grid cols-3" style="margin-top:8px">
     <div>
       <label>RHsa (%) όταν είναι χειροκίνητο</label>
@@ -808,7 +841,31 @@
   const hTw  = (T,w)=> 1.006*T + w*(2501 + 1.86*T);
   const T_hw = (h,w)=> (h - 2501*w) / (1.006 + 1.86*w);
   const RH_Tw = (T,w)=>{ const Pv=(w*Patm)/(0.62198+w); const Ps=esat(T); return Math.max(0,Math.min(100,100*Pv/Ps)); };
-  const fmtW = x => (document.getElementById('Units').value==='kW') ? (x/1000).toFixed(2)+' kW' : Math.round(x)+' W';
+  
+  // ADP & Bypass Factor from process line between entering (T1,w1) and leaving (T2,w2)
+  const ADP_BPF = (T1,w1,T2,w2)=>{
+    if(!isFinite(T1)||!isFinite(w1)||!isFinite(T2)||!isFinite(w2)) return {Tadp:NaN,bpf:NaN};
+    if(Math.abs(T2-T1)<1e-9) return {Tadp:NaN,bpf:NaN};
+    const lineW = (T)=> w1 + (w2-w1)*((T - T1)/(T2 - T1));
+    const f = (T)=> wTRH(T,100) - lineW(T); // wsat - process line
+    // bracket Tadp between very cold and entering temp
+    let lo=-20, hi=T1;
+    let flo=f(lo), fhi=f(hi);
+    // if no sign change, give up
+    if(!isFinite(flo)||!isFinite(fhi) || flo*fhi>0) return {Tadp:NaN,bpf:NaN};
+    for(let i=0;i<60;i++){
+      const mid=(lo+hi)/2;
+      const fmid=f(mid);
+      if(!isFinite(fmid)) break;
+      if(flo*fmid<=0){ hi=mid; fhi=fmid; }
+      else { lo=mid; flo=fmid; }
+    }
+    const Tadp=(lo+hi)/2;
+    const bpf = (T2 - Tadp)/(T1 - Tadp);
+    return {Tadp, bpf};
+  };
+
+const fmtW = x => (document.getElementById('Units').value==='kW') ? (x/1000).toFixed(2)+' kW' : Math.round(x)+' W';
 
   function roomData(){
     const Mode=document.getElementById('Mode')?.value||'cool';
@@ -838,6 +895,10 @@
     if(R.Mode!=="cool"){ out.innerHTML='<div class="warn">Η ανάλυση στοιχείου ενεργή μόνο σε Ψύξη.</div>'; return; }
     if(!isFinite(R.Qsens)){ out.innerHTML='<div class="warn">Πάτησε «Υπολογισμός» στα Φορτία για να έχουμε Qs/Ql.</div>'; return; }
 
+    const modelNow = $('PS_CoilModel')?.value || 'none';
+    const blkNow = $('PS_rows_block');
+    if(blkNow) blkNow.style.display = (modelNow==='rows') ? 'grid' : 'none';
+
     const Tsa_in = parseFloat(($('PS_Tsa')?.value)||14);
     const RHmode = $('PS_SA_RH_mode')?.value||'sat';
     const RHsa_man = parseFloat(($('PS_RHsa')?.value)||95);
@@ -853,10 +914,54 @@
 
     // Υπόθεση: αν δεν δώθηκε SA, θα προκύψει από Qsens και Tsa
     let Vsa_m3s;
-    if(isFinite(SA_m3h_in) && SA_m3h_in>0){ Vsa_m3s = SA_m3h_in/3600; }
-    else { const mdot_sa = R.Qsens/(cp*1000*Math.max(0.1,(R.Tin - Tsa_in))); Vsa_m3s = mdot_sa/rho; }
-
     const Voa_m3s = Math.max(0,R.Voa_m3s);
+
+    if(isFinite(SA_m3h_in) && SA_m3h_in>0){
+      Vsa_m3s = SA_m3h_in/3600;
+    } else {
+      // Auto-size supply airflow based on TOTAL (sensible+latent) cooling using mixed-air enthalpy.
+      // This avoids the classic sensible-only under-sizing and fixes coil/psychro inconsistencies.
+      const Qtarget = Math.max(0,(R.Qsens||0) + (R.Qlat||0)); // W
+
+      if(modeSel!=='fixT' || Qtarget<=0){
+        // Fallback to sensible-only if we don't have a defined leaving state.
+        const mdot_sa_s = R.Qsens/(cp*1000*Math.max(0.1,(R.Tin - Tsa_in)));
+        Vsa_m3s = mdot_sa_s/rho;
+      } else {
+        // Leaving state for fixed Tsa
+        let wsa0;
+        if(RHmode==='sat'){ wsa0 = wTRH(Tsa_in,100); }
+        else if(RHmode==='roomw'){ wsa0 = win; }
+        else { const r=Math.max(5,Math.min(100,RHsa_man)); wsa0 = wTRH(Tsa_in,r); }
+        const hsa0 = hTw(Tsa_in,wsa0);
+
+        // Solve Vsa such that Qtarget ~= m_dot_sa*(h_mix(Vsa)-h_sa)*1000
+        const QfromVsa = (Vsa)=>{
+          const Vrec = Math.max(0, Vsa - Voa_m3s);
+          const mdot_oa=Voa_m3s*rho, mdot_ra=Vrec*rho, mdot_sa=Vsa*rho;
+          const denom=Math.max(1e-9,(mdot_oa+mdot_ra));
+          const hmix=(mdot_oa*hout + mdot_ra*hin)/denom;
+          return mdot_sa*Math.max(0,(hmix - hsa0))*1000; // W
+        };
+
+        let lo = Math.max(Voa_m3s, 0.05);   // m3/s
+        let hi = Math.max(lo*2, 0.5);       // m3/s
+        // Expand upper bound until it can meet the load (or until unreasonable)
+        for(let k=0;k<30;k++){
+          if(QfromVsa(hi) >= Qtarget) break;
+          hi *= 1.6;
+          if(hi > 25) break; // hard cap (m3/s)
+        }
+        // Bisection
+        for(let i=0;i<50;i++){
+          const mid=(lo+hi)/2;
+          const Qm=QfromVsa(mid);
+          if(Qm >= Qtarget) hi=mid; else lo=mid;
+        }
+        Vsa_m3s = hi;
+      }
+    }
+
     const Vrec_m3s = Math.max(0,Vsa_m3s - Voa_m3s);
     const mdot_oa=Voa_m3s*rho, mdot_ra=Vrec_m3s*rho, mdot_sa=Vsa_m3s*rho;
 
@@ -865,12 +970,34 @@
     const Tmix=T_hw(hmix,wmix);
     const RHmix=RH_Tw(Tmix,wmix);
 
+    const coilModel = $('PS_CoilModel')?.value || 'none';
+
     let Tsa=Tsa_in, wsa, RHsa, hsa;
+    // Rows-based coil model: estimate BPF from rows/face velocity and compute leaving humidity from ADP/BPF.
+    let Tadp_est = NaN, BPF_est = NaN;
+
     if(modeSel==='fixT'){
-      if(RHmode==='sat'){ RHsa=100; wsa=wTRH(Tsa,100); }
+      if(coilModel==='rows'){
+        const rows = parseFloat(($('PS_rows')?.value)||'3');
+        const faceV = parseFloat(($('PS_faceV')?.value)||'2.0');
+        // Typical BPF by rows (comfort AHU coil sizing, indicative)
+        const base = ({2:0.30,3:0.22,4:0.16,6:0.08})[rows] ?? 0.20;
+        // Higher face velocity -> worse (higher) BPF
+        BPF_est = Math.max(0.03, Math.min(0.60, base * Math.sqrt(Math.max(0.5, faceV)/2.0)));
+        // Tadp consistent with leaving Tsa
+        Tadp_est = (Tsa - BPF_est*Tmix) / Math.max(1e-6,(1 - BPF_est));
+        // Saturated humidity ratio at ADP
+        const wadp = wTRH(Tadp_est, 100);
+        // Leaving humidity ratio from bypass mixing
+        wsa = BPF_est*wmix + (1 - BPF_est)*wadp;
+        RHsa = RH_Tw(Tsa, wsa);
+        hsa = hTw(Tsa, wsa);
+      } else {
+        if(RHmode==='sat'){ RHsa=100; wsa=wTRH(Tsa,100); }
       else if(RHmode==='roomw'){ wsa=win; RHsa=RH_Tw(Tsa,wsa); }
       else { const r=Math.max(5,Math.min(100,RHsa_man)); RHsa=r; wsa=wTRH(Tsa,r); }
       hsa=hTw(Tsa,wsa);
+      }
     } else { // fixRH
       if(!(isFinite(SA_m3h_in)&&SA_m3h_in>0)){ out.innerHTML='<div class="warn">Για σταθερό RHsa% δώσε παροχή SA (m³/h).</div>'; return; }
       const r=Math.max(5,Math.min(100,RHsa_man));
@@ -882,6 +1009,17 @@
     const Qcoil_sens = mdot_sa * Math.max(0,(Tmix - Tsa)) * cp * 1000;
     const Qcoil_lat = Math.max(0,Qcoil_tot - Qcoil_sens);
 
+
+    // ADP & Bypass Factor
+    let Tadp = NaN, BPF = NaN;
+    if(coilModel==='rows' && isFinite(Tadp_est) && isFinite(BPF_est)){
+      Tadp = Tadp_est; BPF = BPF_est;
+    } else {
+      const adp = ADP_BPF(Tmix, wmix, Tsa, wsa);
+      Tadp = adp.Tadp;
+      BPF  = adp.bpf;
+    }
+
     const Vsa_m3h=Vsa_m3s*3600, Voa_m3h=Voa_m3s*3600, Vrec_m3h=Vrec_m3s*3600;
     const exhaust_m3h = Math.max(0, Voa_m3h - press_m3h);
     const return_m3h  = Math.max(0, Vsa_m3h - exhaust_m3h);
@@ -890,7 +1028,7 @@
       <div class="grid cols-3">
         <div class="kpi"><div class="muted">Παροχή προσαγωγής (SA)</div><b>${Vsa_m3h.toFixed(0)} m³/h</b><div>OA% στο Mix: ${((Voa_m3h/Math.max(1,Vsa_m3h))*100).toFixed(1)}%</div></div>
         <div class="kpi"><div class="muted">Mix @ coil inlet</div><b>${Tmix.toFixed(1)} °C</b><div>RH≈${RHmix.toFixed(0)}% · w=${wmix.toFixed(4)} kg/kg</div><div>h=${hmix.toFixed(1)} kJ/kg</div></div>
-        <div class="kpi"><div class="muted">Supply (SA)</div><b>${Tsa.toFixed(1)} °C / ${RHsa.toFixed(0)}% RH</b><div>w=${wsa.toFixed(4)} kg/kg</div><div>h=${hsa.toFixed(1)} kJ/kg</div></div>
+        <div class="kpi"><div class="muted">Supply (SA)</div><b>${Tsa.toFixed(1)} °C / ${RHsa.toFixed(0)}% RH</b><div>w=${wsa.toFixed(4)} kg/kg</div><div>h=${hsa.toFixed(1)} kJ/kg<div>ADP=${isFinite(Tadp)?Tadp.toFixed(1):"—"} °C · BPF=${isFinite(BPF)?Math.max(0,Math.min(1,BPF)).toFixed(2):"—"}</div></div></div>
       </div>
       <div class="grid cols-3" style="margin-top:10px">
         <div class="kpi"><div class="muted">Coil Load</div><b>${fmtW(Qcoil_tot)}</b><div>Qs=${fmtW(Qcoil_sens)} · Ql=${fmtW(Qcoil_lat)}</div></div>
@@ -902,7 +1040,7 @@
   function suggestT(){
     const R=roomData(); if(R.Mode!=='cool') return;
     const SA_m3h_in=parseFloat(($('PS_SA_manual')?.value)||''); if(!(isFinite(SA_m3h_in)&&SA_m3h_in>0)) return;
-    const win=wTRH(R.Tin,R.Hin), wout=wTRH(R.Tout,R.RHout);
+    const win=wTRH(R.Tin,R.RHin), wout=wTRH(R.Tout,R.RHout);
     const hin=hTw(R.Tin,win), hout=hTw(R.Tout,wout);
     const Vsa=SA_m3h_in/3600, Voa=Math.max(0,R.Voa_m3s), Vrec=Math.max(0,Vsa - Voa);
     const mdot_oa=Voa*rho, mdot_ra=Vrec*rho; const mdot_sa=Vsa*rho;
@@ -919,6 +1057,12 @@
   const loadsBtn=document.getElementById('tabLoads');
   openBtn?.addEventListener('click', ()=>{ compute(); });
   $('PS_Recalc')?.addEventListener('click', compute);
+  $('PS_CoilModel')?.addEventListener('change', ()=>{
+    const model = $('PS_CoilModel')?.value || 'none';
+    const blk = $('PS_rows_block');
+    if(blk) blk.style.display = (model==='rows') ? 'grid' : 'none';
+    compute();
+  });
   $('PS_Suggest_T')?.addEventListener('click', ()=>{ suggestT(); compute(); });
   $('PS_Suggest_RH')?.addEventListener('click', ()=>{ const el=$('PS_RHsa'); if(el) el.value='95'; compute(); });
 
