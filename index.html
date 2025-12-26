@@ -112,10 +112,13 @@
             <select id="UwallPreset">
               <option value="1.80">Τοιχοποιία παλαιά (U≈1.80)</option>
               <option value="1.20">Τούβλο 10cm + σοβάδες (U≈1.20)</option>
+              <option value="1.00">Διπλή τοιχοποιία χωρίς μόνωση (U≈1.00)</option>
               <option value="0.70">Μόνωση ~5cm EPS (U≈0.70)</option>
               <option value="0.45">Μόνωση ~8cm EPS (U≈0.45)</option>
+              <option value="0.35">Μόνωση ~10cm EPS (U≈0.35)</option>
+              <option value="0.30">Μόνωση ~12cm EPS (U≈0.30)</option>
               <option value="custom">Custom</option>
-            </select>
+</select>
           </div>
           <div><label>U wall custom</label><input id="UwallCustom" type="number" step="0.01" value="0.70" disabled></div>
           <div><label>Μήκος προς εξωτερικό (m)</label><input id="LwallExt" type="number" step="0.1" value="8"></div>
@@ -137,9 +140,11 @@
               <option value="5.7">Μονό clear (U≈5.7)</option>
               <option value="2.8" selected>Διπλό clear (U≈2.8)</option>
               <option value="1.6">Διπλό low‑e (U≈1.6)</option>
+              <option value="1.3">Διπλό low‑e + Argon (U≈1.3)</option>
               <option value="1.0">Τριπλό low‑e (U≈1.0)</option>
+              <option value="0.9">Τριπλό low‑e + Argon (U≈0.9)</option>
               <option value="custom">Custom</option>
-            </select>
+</select>
           </div>
           <div><label>U window custom</label><input id="UwinCustom" type="number" step="0.1" value="2.8" disabled></div>
           <div>
@@ -173,8 +178,10 @@
               <option value="0.50">XPS ~5cm (0.50)</option>
               <option value="0.35" selected>XPS ~8cm (0.35)</option>
               <option value="0.25">XPS ~12cm (0.25)</option>
+              <option value="0.20">XPS ~15cm (0.20)</option>
+              <option value="0.18">XPS ~20cm (0.18)</option>
               <option value="custom">Custom</option>
-            </select>
+</select>
           </div>
           <div><label>U roof custom</label><input id="UroofCustom" type="number" step="0.01" value="0.35" disabled></div>
           <div><label>% οροφής προς εξωτερικό</label><input id="RoofPctExt" type="number" step="1" value="100"></div>
@@ -188,14 +195,21 @@
           <div>
             <label>U δαπέδου</label>
             <select id="UfloorPreset">
-              <option value="1.50">Πλάκα ορόφου αμόνωτη (1.50)</option>
-              <option value="1.20">Προς έδαφος χωρίς μόνωση (1.20)</option>
-              <option value="0.50" selected>Μονωμένο (0.50)</option>
+              <option value="p|1.50">Προς pilotis χωρίς μόνωση (1.50)</option>
+              <option value="p|0.90">Προς pilotis ελαφρά μόνωση ~3cm (0.90)</option>
+              <option value="p|0.50">Προς pilotis μόνωση ~5cm (0.50)</option>
+              <option value="p|0.35">Προς pilotis μόνωση ~8cm (0.35)</option>
+              <option value="p|0.25">Προς pilotis μόνωση ~12cm (0.25)</option>
+              <option value="g|1.20">Προς έδαφος χωρίς μόνωση (1.20)</option>
+              <option value="g|0.80">Προς έδαφος ελαφρά μόνωση ~3cm (0.80)</option>
+              <option value="g|0.50" selected>Προς έδαφος μόνωση ~5cm (0.50)</option>
+              <option value="g|0.35">Προς έδαφος μόνωση ~8cm (0.35)</option>
+              <option value="g|0.25">Προς έδαφος μόνωση ~12cm (0.25)</option>
               <option value="custom">Custom</option>
-            </select>
+</select>
           </div>
           <div><label>U floor custom</label><input id="UfloorCustom" type="number" step="0.01" value="0.50" disabled></div>
-          <div><label>% δαπέδου προς έδαφος</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
+          <div><label>% δαπέδου προς έδαφος/πιλοτή</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
         </div>
         <div class="grid cols-3" style="margin-top:8px">
           <div><label>% δαπέδου προς μη θερμαινόμενο</label><input id="FloorPctUnh" type="number" step="1" value="0"></div>
@@ -446,7 +460,24 @@
       // --- Roof/Floor
       const Aroof=L*Wm, Afloor=L*Wm;
       const Uroof=(str('UroofPreset')==='custom')? num('UroofCustom',0.35):parseFloat(str('UroofPreset'));
-      const Ufloor=(str('UfloorPreset')==='custom')? num('UfloorCustom',0.5):parseFloat(str('UfloorPreset'));
+
+      // U δαπέδου: επιτρέπει "g|0.50" (προς έδαφος) ή "p|0.50" (προς pilotis), για να ξέρουμε ποιο ΔΤ να εφαρμόσουμε.
+      const ufSel = str('UfloorPreset');
+      let Ufloor = 0.5;
+      let floorBoundary = 'ground'; // 'ground' | 'pilotis'
+      if(ufSel==='custom'){
+        Ufloor = num('UfloorCustom',0.5);
+      } else if(String(ufSel).includes('|')){
+        const parts = String(ufSel).split('|');
+        const b = (parts[0]||'g').trim().toLowerCase();
+        const u = parseFloat(parts[1]);
+        Ufloor = isNaN(u) ? 0.5 : u;
+        floorBoundary = (b==='p') ? 'pilotis' : 'ground';
+      } else {
+        const u = parseFloat(ufSel);
+        Ufloor = isNaN(u) ? 0.5 : u;
+        floorBoundary = 'ground';
+      }
       const RoofPctExt=clamp(num('RoofPctExt',100)/100,0,1), RoofPctUnh=clamp(num('RoofPctUnh',0)/100,0,1), RoofPctHeated=clamp(num('RoofPctHeated',0)/100,0,1);
       const FloorPctGround=clamp(num('FloorPctGround',100)/100,0,1), FloorPctUnh=clamp(num('FloorPctUnh',0)/100,0,1), FloorPctHeated=clamp(num('FloorPctHeated',0)/100,0,1);
       const Tattic=num('Tattic', mode==='cool'?35:8), Tground=num('Tground', mode==='cool'?15:12);
@@ -459,8 +490,14 @@
       const Qroof_heated = 0; // ίδια ζώνη ~0
 
       // Δάπεδο
-      const dT_floor_ground = Math.max(0, mode==='cool' ? (Tground - Tin) : (Tin - Tground));
+      // - Προς έδαφος: το ΧΕΙΜΩΝΑ λαμβάνεται (Tin - Tground). Το ΚΑΛΟΚΑΙΡΙ το αγνοούμε (το έδαφος συνήθως είναι πιο ψυχρό).
+      // - Προς pilotis: θεωρείται προς εξωτερικό (dT_base) και λαμβάνεται ΚΑΙ σε θέρμανση ΚΑΙ σε ψύξη.
+      const dT_floor_ground = (floorBoundary==='pilotis')
+        ? dT_base
+        : (mode==='cool' ? 0 : Math.max(0, (Tin - Tground)));
+
       const dT_floor_unh = Math.max(0, mode==='cool' ? (Tadj - Tin) : (Tin - Tadj));
+
       const Qfloor_ground = (Afloor*FloorPctGround) * Ufloor * dT_floor_ground;
       const Qfloor_unh = (Afloor*FloorPctUnh) * Ufloor * dT_floor_unh;
       const Qfloor_heated = 0;
