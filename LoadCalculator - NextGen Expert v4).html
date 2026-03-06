@@ -1,0 +1,2500 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HVAC Load Calculator</title>
+  <style>
+    :root {
+      --bg-1: #071321;
+      --bg-2: #0f2438;
+      --panel: #12283d;
+      --panel-2: #0d1f31;
+      --line: #2b4860;
+      --text: #eaf5ff;
+      --muted: #9db9cf;
+      --accent: #2dd4bf;
+      --accent-2: #38bdf8;
+      --mode: #7dd3fc;
+      --kpi: #8be3ff;
+      --warn: #fbbf24;
+      --ok: #34d399;
+      --shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+    }
+
+    body[data-mode="heat"] {
+      --bg-1: #0f1723;
+      --bg-2: #17283a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Aptos, "Trebuchet MS", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 500px at 90% -15%, rgba(45, 212, 191, 0.22), transparent 55%),
+        radial-gradient(800px 500px at -10% 20%, rgba(56, 189, 248, 0.15), transparent 55%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      padding: 16px;
+      transition: background 0.35s ease;
+    }
+    body[data-mode="heat"] {
+      background:
+        radial-gradient(900px 500px at 90% -15%, rgba(255, 196, 140, 0.12), transparent 55%),
+        radial-gradient(800px 500px at -10% 20%, rgba(255, 222, 170, 0.08), transparent 55%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+
+    .app { max-width: 1400px; margin: 0 auto; }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(130deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero h1 { margin: 0; font-size: 1.55rem; }
+    .hero p { margin: 0; color: var(--muted); }
+
+    .hero-grid { display: grid; gap: 12px; }
+    @media (min-width: 980px) {
+      .hero-grid { grid-template-columns: 1.7fr 1fr; align-items: start; }
+    }
+
+    .hero-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.12);
+      padding: 10px;
+      font-size: 0.9rem;
+      color: #d6e9fa;
+    }
+    .hero-card b { color: #ffe0a6; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .tab-btn.active {
+      border-color: transparent;
+      color: #0b1118;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
+    .workspace {
+      display: grid;
+      gap: 12px;
+    }
+
+    @media (min-width: 1120px) {
+      .workspace { grid-template-columns: 330px 1fr; }
+    }
+
+    .side,
+    .main {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: var(--shadow);
+    }
+
+    .side { padding: 12px; height: max-content; position: sticky; top: 14px; }
+    .side h3 { margin: 0 0 8px; }
+    .side .mini {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.14);
+      padding: 10px;
+      margin-bottom: 8px;
+      font-size: 0.86rem;
+      color: #c8dff0;
+    }
+
+    .main { padding: 14px; }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(5, 12, 19, 0.3);
+      padding: 12px;
+      margin-bottom: 11px;
+    }
+
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 1.02rem;
+      color: #deedf9;
+    }
+
+    .grid { display: grid; gap: 10px; }
+    @media (min-width: 820px) {
+      .cols-2 { grid-template-columns: repeat(2, 1fr); }
+      .cols-3 { grid-template-columns: repeat(3, 1fr); }
+      .cols-4 { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    label {
+      display: block;
+      color: #c9dded;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .desc { margin-top: 4px; color: var(--muted); font-size: 0.78rem; }
+
+    input, select, button {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 11px;
+      border: 1px solid #3b5f79;
+      background: #0a1622;
+      color: var(--text);
+      outline: none;
+    }
+
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+    }
+
+
+    button { cursor: pointer; font-weight: 700; }
+    .primary {
+      border: 0;
+      color: #111827;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    .ghost { background: transparent; }
+
+    .hintline { margin-top: 7px; color: #a9c3d8; font-size: 0.8rem; }
+    .ok { color: var(--ok); }
+    .warnTxt { color: var(--warn); }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .table th,
+    .table td {
+      border-bottom: 1px dashed var(--line);
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .kpi {
+      border: 1px dashed #3e637d;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 11px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .kpi b { font-size: 1.28rem; color: #c4f2ff; }
+    .kpi-main b { color: var(--kpi); }
+
+    .rowline {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px dashed var(--line);
+      padding: 6px 0;
+    }
+
+    .muted { color: var(--muted); }
+
+    .warn {
+      border-left: 3px solid var(--warn);
+      background: rgba(251, 191, 36, 0.14);
+      color: #ffe8ba;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      margin-top: 8px;
+    }
+
+    .good {
+      border-left: 3px solid var(--ok);
+      background: rgba(16, 185, 129, 0.14);
+      color: #cefde9;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      margin-top: 8px;
+    }
+
+    canvas {
+      max-width: 100%;
+      background: rgba(5, 12, 19, 0.3);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    #psychroPane .guide {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.13);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .wizard { display: grid; gap: 8px; margin-bottom: 8px; }
+    @media (min-width: 900px) {
+      .wizard { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .wstep {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.14);
+    }
+
+    .wstep b { display: block; color: #ffdba0; font-size: 0.82rem; }
+    .wstep span { display: block; color: #c5dceb; font-size: 0.8rem; }
+
+    .terms { display: grid; gap: 8px; margin-top: 8px; }
+    @media (min-width: 900px) {
+      .terms { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .term {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.14);
+    }
+
+    .term b { display: block; color: #ffd59a; }
+    .term p { margin: 3px 0 0; color: #d3e5f2; font-size: 0.83rem; }
+
+    .input-help { margin-top: 4px; color: var(--muted); font-size: 0.78rem; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.75rem;
+      color: #d9e9f7;
+      background: rgba(0, 0, 0, 0.14);
+    }
+
+    .expert-only { display: block; }
+    .is-simple .expert-only { display: none; }
+
+    .inline-btns { display: grid; gap: 8px; }
+    @media (min-width: 760px) { .inline-btns { grid-template-columns: repeat(2, 1fr); } }
+
+    .lang-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .lang-wrap select {
+      max-width: 150px;
+    }
+
+    .space-row {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      margin-bottom: 7px;
+      background: rgba(0, 0, 0, 0.12);
+    }
+    .space-row b {
+      color: #d9efff;
+      display: block;
+    }
+    .space-row .meta {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 2px;
+    }
+
+    .formulas {
+      font-size: 0.8rem;
+      color: #cde2f3;
+      line-height: 1.45;
+    }
+    .formulas code {
+      color: #ffe2a9;
+    }
+  </style>
+</head>
+<body data-mode="cool">
+<div class="app">
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <h1>HVAC Load Calculator</h1>
+        <p id="heroSubtitle">Cooling/heating load estimation tool with guided psychrometrics for comfort and light-industrial applications.</p>
+      </div>
+      <div class="hero-card">
+        <div class="lang-wrap">
+          <label for="Lang" id="langLabel" style="margin:0">Language</label>
+          <select id="Lang">
+            <option value="el" selected>Ελληνικά</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <b id="heroStepsTitle">Typical Use</b>
+        <div id="heroStep1">1) Fill inputs from top to bottom.</div>
+        <div id="heroStep2">2) Calculate load and inspect split (Qs/Ql).</div>
+        <div id="heroStep3">3) Open psychrometrics for SA + coil validation.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabsBar">
+    <button id="tabLoads" class="tab-btn active" type="button">Φορτία</button>
+    <button id="tabPsychro" class="tab-btn" type="button">Ψυχρομετρία</button>
+  </div>
+
+  <div id="loadsPane" class="workspace">
+    <aside class="side">
+      <h3 id="sideTitle">Παραδοχές & Σύνοψη</h3>
+
+      <div class="mini">
+        <div style="font-weight:700;margin-bottom:6px" id="assumpTitle">Ενεργές παραδοχές</div>
+        <div id="assumptionsList" class="muted">-</div>
+      </div>
+
+      <div class="mini">
+        <div style="font-weight:700;margin-bottom:6px" id="formulasTitle">Τύποι που χρησιμοποιούνται</div>
+        <div class="formulas" id="formulasBox">
+          <div><code>Q_trans = U * A * ΔT</code></div>
+          <div><code>Q_sensible_air = m_dot * cp * ΔT</code></div>
+          <div><code>Q_latent_air = m_dot * (h_out - h_in) - Q_sensible</code></div>
+          <div><code>SHR = Qs / (Qs + Ql)</code></div>
+          <div><code>Q_coil_total = m_dot * (h_mix - h_supply)</code></div>
+        </div>
+      </div>
+
+      <div class="mini">
+        <div style="font-weight:700;margin-bottom:6px" id="spaceMgrTitle">Σύνθεση Κτιρίου (Χώροι)</div>
+        <div class="grid cols-2" style="margin-bottom:8px">
+          <div><input id="roomName" type="text" placeholder="Όνομα χώρου" /></div>
+          <div><button id="addRoomBtn" class="ghost" type="button">Προσθήκη Χώρου</button></div>
+        </div>
+        <div class="grid cols-2" style="margin-bottom:8px">
+          <div><button id="exportLoadPdfBtn" class="ghost" type="button">Export Loads PDF</button></div>
+          <div><button id="clearRoomsBtn" class="ghost" type="button">Καθαρισμός</button></div>
+        </div>
+        <div id="spacesTree" class="muted">Δεν έχουν προστεθεί χώροι.</div>
+        <div id="buildingTotals" class="hintline"></div>
+      </div>
+
+      <div class="mini">
+        <div style="font-weight:700;margin-bottom:6px" id="quickTitle">Γρήγορες ενέργειες</div>
+        <div class="inline-btns">
+          <button class="ghost" id="openPsychroCta" type="button">Άνοιγμα Ψυχρομετρίας</button>
+          <button class="ghost" id="recalcQuick" type="button">Επανυπολογισμός</button>
+        </div>
+      </div>
+
+      <div class="mini">
+        <div style="font-weight:700;margin-bottom:6px" id="checksTitle">Έλεγχοι εισόδων</div>
+        <div id="liveChecks" class="muted">-</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="section">
+        <h2>Operation / Λειτουργία</h2>
+        <div class="grid cols-3">
+          <div>
+            <label>Mode / Λειτουργία</label>
+            <select id="Mode">
+              <option value="cool" selected>Cooling / Ψύξη</option>
+              <option value="heat">Heating / Θέρμανση</option>
+            </select>
+            <div class="desc">Heating mode uses warm color theme automatically.</div>
+          </div>
+          <div>
+            <label>Units / Μονάδες</label>
+            <select id="Units">
+              <option value="W" selected>W</option>
+              <option value="kW">kW</option>
+            </select>
+          </div>
+          <div>
+            <label>City preset / Πόλη</label>
+            <select id="city">
+              <option value="Athens|36|40">Athens (36 C / 40%)</option>
+              <option value="Thessaloniki|35|50">Thessaloniki (35 C / 50%)</option>
+              <option value="Patra|34|55">Patra (34 C / 55%)</option>
+              <option value="Heraklion|33|60">Heraklion (33 C / 60%)</option>
+              <option value="Custom">Custom / Χειροκίνητα</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Geometry / Γεωμετρία</h2>
+        <div class="grid cols-3">
+          <div><label>Length [m] / Μήκος</label><input type="number" id="L" step="0.1" value="6"></div>
+          <div><label>Width [m] / Πλάτος</label><input type="number" id="W" step="0.1" value="4.5"></div>
+          <div><label>Height [m] / Ύψος</label><input type="number" id="H" step="0.1" value="2.8"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Design Conditions / Συνθήκες Σχεδιασμού</h2>
+        <div class="grid cols-2">
+          <div><label>Indoor Temp [degC]</label><input id="Tin" type="number" step="0.1" value="24"></div>
+          <div><label>Indoor RH [%]</label><input id="RHin" type="number" step="1" value="45"></div>
+          <div><label>Outdoor Temp [degC]</label><input id="Tout" type="number" step="0.1" value="36"></div>
+          <div><label>Outdoor RH [%]</label><input id="RHout" type="number" step="1" value="40"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Walls / Τοίχοι</h2>
+        <div class="grid cols-3">
+          <div>
+            <label>Wall U preset [W/m²K]</label>
+            <select id="UwallPreset">
+              <option value="1.80">Old masonry (1.80)</option>
+              <option value="1.20">Single brick + plaster (1.20)</option>
+              <option value="1.00">Double wall uninsulated (1.00)</option>
+              <option value="0.70" selected>Insulated 5 cm EPS (0.70)</option>
+              <option value="0.45">Insulated 8 cm EPS (0.45)</option>
+              <option value="0.35">Insulated 10 cm EPS (0.35)</option>
+              <option value="0.25">High insulation 15 cm EPS (0.25)</option>
+              <option value="0.55">Industrial PU panel 40 mm (0.55)</option>
+              <option value="0.38">Industrial PU/PIR panel 60 mm (0.38)</option>
+              <option value="0.28">Industrial PU/PIR panel 80 mm (0.28)</option>
+              <option value="0.22">Industrial PU/PIR panel 100 mm (0.22)</option>
+              <option value="0.65">Mineral wool panel 50 mm (0.65)</option>
+              <option value="0.48">Mineral wool panel 80 mm (0.48)</option>
+              <option value="0.45">Concrete sandwich panel (0.45)</option>
+              <option value="0.90">Precast concrete no insulation (0.90)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div><label>Wall U custom [W/m²K]</label><input id="UwallCustom" type="number" step="0.01" value="0.70" disabled></div>
+          <div><label>External wall length [m]</label><input id="LwallExt" type="number" step="0.1" value="8"></div>
+        </div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>Wall length to unconditioned zone [m]</label><input id="LwallUnh" type="number" step="0.1" value="0"></div>
+          <div><label>Adjacent zone temp [degC]</label><input id="Tadj" type="number" step="0.5" value="30"></div>
+          <div><label>Height mirror [m]</label><input id="H_display" type="number" value="2.8" disabled></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Windows / Υαλοστάσια</h2>
+        <div class="grid cols-3">
+          <div>
+            <label>Window U preset [W/m²K]</label>
+            <select id="UwinPreset">
+              <option value="5.7">Single clear (5.7)</option>
+              <option value="2.8" selected>Double clear (2.8)</option>
+              <option value="1.6">Double low-e (1.6)</option>
+              <option value="1.3">Double low-e + Argon (1.3)</option>
+              <option value="1.0">Triple low-e (1.0)</option>
+              <option value="0.9">Triple low-e + Argon (0.9)</option>
+              <option value="0.8">High-performance triple (0.8)</option>
+              <option value="1.9">Industrial frame thermally broken (1.9)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div><label>Window U custom [W/m²K]</label><input id="UwinCustom" type="number" step="0.1" value="2.8" disabled></div>
+          <div>
+            <label>SHGC preset [-]</label>
+            <select id="SHGCpreset">
+              <option value="0.86">Single clear (~0.86)</option>
+              <option value="0.70" selected>Double clear (~0.70)</option>
+              <option value="0.55">Double low-e (~0.55)</option>
+              <option value="0.40">Triple low-e (~0.40)</option>
+              <option value="0.30">Solar-control glass (~0.30)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:8px"><button class="ghost" id="addWinGrp" type="button">+ Add window group</button></div>
+        <table class="table" id="winTable" style="margin-top:8px">
+          <thead><tr><th>Orientation</th><th>Area [m²]</th><th>Shading factor [-]</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="desc">Shading: 1.0 none, 0.7 medium, 0.4 strong. Orientations: N NE E SE S SW W NW.</div>
+      </div>
+      <div class="section">
+        <h2>Roof & Floor / Οροφή & Δάπεδο</h2>
+
+        <div class="grid cols-3">
+          <div>
+            <label>Roof U preset [W/m²K]</label>
+            <select id="UroofPreset">
+              <option value="0.05">No exposed roof / internal ceiling (0.05)</option>
+              <option value="1.00">Uninsulated slab (1.00)</option>
+              <option value="0.50">XPS 5 cm (0.50)</option>
+              <option value="0.35" selected>XPS 8 cm (0.35)</option>
+              <option value="0.25">XPS 12 cm (0.25)</option>
+              <option value="0.20">XPS 15 cm (0.20)</option>
+              <option value="0.18">XPS 20 cm (0.18)</option>
+              <option value="2.40">Metal deck no insulation (2.40)</option>
+              <option value="0.55">Metal + PU panel 40 mm (0.55)</option>
+              <option value="0.38">Metal + PU/PIR panel 60 mm (0.38)</option>
+              <option value="0.28">Metal + PU/PIR panel 80 mm (0.28)</option>
+              <option value="0.22">Metal + PU/PIR panel 100 mm (0.22)</option>
+              <option value="0.65">Metal + mineral wool 50 mm (0.65)</option>
+              <option value="0.48">Metal + mineral wool 80 mm (0.48)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div><label>Roof U custom [W/m²K]</label><input id="UroofCustom" type="number" step="0.01" value="0.35" disabled></div>
+          <div><label>% roof to outdoor [%]</label><input id="RoofPctExt" type="number" step="1" value="100"></div>
+        </div>
+
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>% roof to unconditioned zone [%]</label><input id="RoofPctUnh" type="number" step="1" value="0"></div>
+          <div><label>Unconditioned zone temp above [degC]</label><input id="Tattic" type="number" step="0.5" value="35"></div>
+          <div><label>% roof to conditioned zone [%]</label><input id="RoofPctHeated" type="number" step="1" value="0"></div>
+        </div>
+        <div id="roofPctHint" class="hintline"></div>
+
+        <div class="grid cols-3" style="margin-top:10px">
+          <div>
+            <label>Floor U preset [W/m²K]</label>
+            <select id="UfloorPreset">
+              <option value="p|1.50">Pilotis uninsulated (1.50)</option>
+              <option value="p|0.90">Pilotis light insulation 3 cm (0.90)</option>
+              <option value="p|0.50">Pilotis insulation 5 cm (0.50)</option>
+              <option value="p|0.35">Pilotis insulation 8 cm (0.35)</option>
+              <option value="p|0.25">Pilotis insulation 12 cm (0.25)</option>
+              <option value="p|0.22">Pilotis industrial panel 100 mm (0.22)</option>
+              <option value="g|1.20">Ground floor uninsulated (1.20)</option>
+              <option value="g|0.80">Ground floor light insulation 3 cm (0.80)</option>
+              <option value="g|0.50" selected>Ground floor insulation 5 cm (0.50)</option>
+              <option value="g|0.35">Ground floor insulation 8 cm (0.35)</option>
+              <option value="g|0.25">Ground floor insulation 12 cm (0.25)</option>
+              <option value="g|0.20">Ground floor insulation 15 cm (0.20)</option>
+              <option value="g|0.30">Industrial slab on ground (0.30)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div><label>Floor U custom [W/m²K]</label><input id="UfloorCustom" type="number" step="0.01" value="0.50" disabled></div>
+          <div><label>% floor to ground/pilotis [%]</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
+        </div>
+        <div id="floorPresetHint" class="hintline"></div>
+
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>% floor to unconditioned zone [%]</label><input id="FloorPctUnh" type="number" step="1" value="0"></div>
+          <div><label>% floor to conditioned zone [%]</label><input id="FloorPctHeated" type="number" step="1" value="0"></div>
+          <div><label>Ground temp [degC]</label><input id="Tground" type="number" step="0.5" value="15"></div>
+        </div>
+        <div id="floorPctHint" class="hintline"></div>
+      </div>
+
+      <div class="section">
+        <h2>Ventilation / Αερισμός</h2>
+        <div class="grid cols-3">
+          <div>
+            <label>Infiltration ACH [1/h]</label>
+            <select id="ACHinf">
+              <option value="0.3">Tight envelope (~0.3)</option>
+              <option value="0.7" selected>Moderate (~0.7)</option>
+              <option value="1.2">Leaky/old (~1.2)</option>
+            </select>
+          </div>
+          <div>
+            <label>Natural ventilation ACH [1/h]</label>
+            <select id="ACHnat">
+              <option value="0">Windows closed</option>
+              <option value="1">Tilt-open (~1)</option>
+              <option value="3">Open windows (~3)</option>
+            </select>
+          </div>
+          <div>
+            <label>Mechanical ventilation mode</label>
+            <select id="MechMode">
+              <option value="ach">Use ACH</option>
+              <option value="flow">Use m3/h</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:8px">
+          <div><label>Mechanical ACH [1/h]</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
+          <div><label>Mechanical airflow [m3/h]</label><input id="Qmech" type="number" step="10" value="0"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Internal Gains / Εσωτερικά Φορτία</h2>
+        <div class="grid cols-3">
+          <div><label>Occupants [#]</label><input id="nPeople" type="number" step="1" value="2"></div>
+          <div>
+            <label>Occupancy activity [W/person]</label>
+            <select id="PeopleActivity">
+              <option value="75|55">Seated (S=75, L=55)</option>
+              <option value="100|75" selected>Light activity (100/75)</option>
+              <option value="130|95">Moderate activity (130/95)</option>
+              <option value="160|120">Industrial light work (160/120)</option>
+            </select>
+          </div>
+          <div><label>Lighting density [W/m²]</label><input id="LightingWm2" type="number" step="1" value="8"></div>
+        </div>
+
+        <div class="section" style="margin-top:10px">
+          <h2>Equipment / Συσκευές</h2>
+          <table class="table" id="devTable">
+            <thead><tr><th>Device</th><th>Power [W]</th><th>Duty factor [-]</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+
+          <div class="grid cols-2" style="margin-top:8px">
+            <div><select id="devLib"></select></div>
+            <div><button id="addDev" class="ghost" type="button">+ Add selected device</button></div>
+          </div>
+
+          <div class="grid cols-3" style="margin-top:8px">
+            <div><label>Custom power [W]</label><input id="CustomW" type="number" step="10" value="0"></div>
+            <div><label>Custom duty [0..1]</label><input id="CustomDuty" type="number" step="0.05" value="1"></div>
+            <div><label>Action</label><button id="addCustom" class="ghost" type="button">Add custom load</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="inline-btns">
+          <button id="btnCalc" class="primary" type="button">Calculate Load / Υπολογισμός</button>
+          <button id="openPsychroFromResults" class="ghost" type="button">Άνοιγμα Ψυχρομετρίας</button>
+        </div>
+
+        <div id="result" style="margin-top:10px"></div>
+        <canvas id="pie" width="760" height="420" style="margin-top:10px"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <div id="psychroPane" class="main" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <h2 style="margin:0" id="psychroTitle">Ψυχρομετρία</h2>
+      <button id="closePsychro" class="ghost" style="width:auto;padding:8px 12px" type="button">Επιστροφή στα Φορτία</button>
+    </div>
+
+    <div class="muted" style="margin-bottom:10px">
+      Uses current load inputs to estimate mixed air, supply state and optional coil consistency checks.
+      <br/>Χρησιμοποιεί τα φορτία χώρου για εκτίμηση μικτού αέρα, προσαγωγής και ελέγχου στοιχείου.
+    </div>
+
+    <div id="psychroSummary" class="section"></div>
+
+    <div class="section">
+      <h2 id="psychroRoomTitle">Χώρος για Ψυχρομετρία</h2>
+      <div class="grid cols-3">
+        <div>
+          <label id="psRoomSelectLabel">Επιλογή αποθηκευμένου χώρου</label>
+          <select id="psRoomSelect"><option value="">Current inputs</option></select>
+        </div>
+        <div><button id="loadRoomBtn" class="ghost" type="button">Φόρτωση χώρου</button></div>
+        <div><button id="exportPsychroPdfBtn" class="ghost" type="button">Export Psychrometrics PDF</button></div>
+      </div>
+      <div id="psychroRoomHint" class="hintline"></div>
+    </div>
+
+    <div class="guide">
+      <h4 style="margin:0 0 8px">Guided Flow / Βήματα</h4>
+      <div class="wizard">
+        <div class="wstep"><b>Step 1</b><span>Run load calc first (Qs/Ql).</span></div>
+        <div class="wstep"><b>Step 2</b><span>Select Simple or Expert mode.</span></div>
+        <div class="wstep"><b>Step 3</b><span>Set SA target and airflow.</span></div>
+        <div class="wstep"><b>Step 4</b><span>Recalculate and validate.</span></div>
+      </div>
+
+      <div class="grid cols-3">
+        <div>
+          <label>Psychro view mode / Προβολή</label>
+          <select id="PS_ViewMode">
+            <option value="simple" selected>Simple / Απλό</option>
+            <option value="expert">Expert / Προχωρημένο</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="psychroInputHint" class="hintline"></div>
+
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;color:#ffd59a;font-weight:700">Acronyms & Key Terms</summary>
+        <div class="terms">
+          <div class="term"><b>RA</b><p>Return air from room / Αέρας επιστροφής.</p></div>
+          <div class="term"><b>OA</b><p>Outdoor fresh air / Νωπός αέρας.</p></div>
+          <div class="term"><b>SA</b><p>Supply air to room / Αέρας προσαγωγής.</p></div>
+          <div class="term"><b>Tsa</b><p>Supply dry-bulb temperature / Θερμοκρασία προσαγωγής.</p></div>
+          <div class="term"><b>w</b><p>Humidity ratio [kg/kg dry air].</p></div>
+          <div class="term"><b>h</b><p>Moist-air enthalpy [kJ/kg dry air].</p></div>
+          <div class="term"><b>Qs / Ql</b><p>Sensible / latent load.</p></div>
+          <div class="term"><b>SHR</b><p>Qs/(Qs+Ql).</p></div>
+          <div class="term"><b>ADP</b><p>Coil apparatus dew point.</p></div>
+          <div class="term"><b>BF</b><p>Bypass factor.</p></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="section">
+      <h2>What To Fill And Why (Quick Map)</h2>
+      <table class="table">
+        <thead><tr><th>Field</th><th>Use it when...</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td><b>PS_Mode = Fixed Tsa</b></td><td>You know supply target temperature.</td><td>Fast and stable sizing method.</td></tr>
+          <tr><td><b>PS_Mode = Fixed RHsa</b></td><td>You need humidity-controlled SA.</td><td>Requires known SA airflow for reliable solve.</td></tr>
+          <tr><td><b>PS_Tsa [degC]</b></td><td>Always in fixed-T mode.</td><td>Directly drives sensible capacity.</td></tr>
+          <tr><td><b>PS_SA_manual [m3/h]</b></td><td>You already sized fan/duct.</td><td>Locks mass flow and avoids guessing.</td></tr>
+          <tr><td><b>PS_CoilMode + BF/ADP</b></td><td>Expert validation.</td><td>Checks physical consistency of coil leaving state.</td></tr>
+          <tr><td><b>PS_LWT [degC]</b></td><td>Chilled-water systems.</td><td>Highlights unrealistic ADP-LWT gap.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="psychroFormWrap">
+      <h2>Supply Target & Coil Inputs</h2>
+
+      <div class="grid cols-3">
+        <div>
+          <label>Supply target mode</label>
+          <select id="PS_Mode">
+            <option value="fixT" selected>Fixed Tsa</option>
+            <option value="fixRH">Fixed RHsa% (known SA required)</option>
+          </select>
+        </div>
+        <div><label>Supply temp Tsa [degC]</label><input id="PS_Tsa" type="number" step="0.1" value="14"></div>
+        <div>
+          <label>Supply humidity mode</label>
+          <select id="PS_SA_RH_mode">
+            <option value="sat" selected>Saturated at Tsa (100%)</option>
+            <option value="roomw">Same humidity ratio as room</option>
+            <option value="manual">Manual RHsa%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><label>Manual RHsa [%]</label><input id="PS_RHsa" type="number" step="1" value="95"></div>
+        <div><label>Known SA airflow [m3/h]</label><input id="PS_SA_manual" type="number" step="10" value=""></div>
+        <div><label>Pressurization offset [m3/h]</label><input id="PS_Pressurization" type="number" step="10" value="0"></div>
+      </div>
+
+      <div class="grid cols-3 expert-only" style="margin-top:8px">
+        <div>
+          <label>Coil model mode</label>
+          <select id="PS_CoilMode">
+            <option value="off" selected>Off</option>
+            <option value="bf">Given BF -> solve ADP</option>
+            <option value="adp">Given ADP -> solve BF</option>
+          </select>
+        </div>
+        <div><label>Bypass Factor BF [0..0.5]</label><input id="PS_BF" type="number" step="0.01" value="0.10"></div>
+        <div><label>Apparatus Dew Point ADP [degC]</label><input id="PS_ADP" type="number" step="0.1" value="12.0"></div>
+      </div>
+
+      <div class="grid cols-3 expert-only" style="margin-top:8px">
+        <div><label>Leaving Water Temp LWT [degC]</label><input id="PS_LWT" type="number" step="0.1" value=""></div>
+      </div>
+
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><button id="PS_Suggest_T" class="ghost" type="button">Suggest Tsa from Qs & SA</button></div>
+        <div><button id="PS_Recalc" class="primary" type="button">Recalculate Mix & Coil</button></div>
+      </div>
+    </div>
+
+    <div id="psychroMix" class="section"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const rho = 1.2;
+  const cp = 1.006;
+  const Patm = 101.325;
+
+  const num = (id, d = 0) => {
+    const n = parseFloat($(id)?.value);
+    return Number.isFinite(n) ? n : d;
+  };
+
+  const str = (id, d = "") => ($(id) ? $(id).value : d);
+
+  const esat = (T) => 0.61078 * Math.exp((17.27 * T) / (T + 237.3));
+
+  const wTRH = (T, RH) => {
+    const Pv = (RH / 100) * esat(T);
+    return 0.62198 * Pv / Math.max(1e-9, Patm - Pv);
+  };
+
+  const hTw = (T, w) => 1.006 * T + w * (2501 + 1.86 * T);
+  const T_hw = (h, w) => (h - 2501 * w) / Math.max(1e-9, (1.006 + 1.86 * w));
+
+  const RH_Tw = (T, w) => {
+    const Pv = (w * Patm) / (0.62198 + w);
+    const Ps = esat(T);
+    return clamp((100 * Pv) / Math.max(1e-9, Ps), 0, 100);
+  };
+
+  const fmtPower = (x) => (str("Units", "W") === "kW" ? `${(x / 1000).toFixed(2)} kW` : `${Math.round(x)} W`);
+
+  let currentLang = "el";
+  let spaces = [];
+  let lastCalc = null;
+  let lastPsychro = null;
+
+  const INPUT_IDS = [
+    "Mode","Units","city","L","W","H","Tin","RHin","Tout","RHout",
+    "UwallPreset","UwallCustom","LwallExt","LwallUnh","Tadj",
+    "UwinPreset","UwinCustom","SHGCpreset",
+    "UroofPreset","UroofCustom","RoofPctExt","RoofPctUnh","RoofPctHeated","Tattic",
+    "UfloorPreset","UfloorCustom","FloorPctGround","FloorPctUnh","FloorPctHeated","Tground",
+    "ACHinf","ACHnat","MechMode","ACHmech","Qmech",
+    "nPeople","PeopleActivity","LightingWm2",
+    "PS_ViewMode","PS_Mode","PS_Tsa","PS_SA_RH_mode","PS_RHsa","PS_SA_manual","PS_Pressurization","PS_CoilMode","PS_BF","PS_ADP","PS_LWT"
+  ];
+
+  const I18N = {
+    en: {
+      heroSubtitle: "Cooling/heating load estimation tool with guided psychrometrics for comfort and light-industrial applications.",
+      heroStepsTitle: "Typical Use",
+      heroStep1: "1) Fill inputs from top to bottom.",
+      heroStep2: "2) Calculate load and inspect split (Qs/Ql).",
+      heroStep3: "3) Open psychrometrics for SA + coil validation.",
+      langLabel: "Language",
+      sideTitle: "Assumptions & Summary",
+      assumpTitle: "Active assumptions",
+      formulasTitle: "Model equations",
+      spaceMgrTitle: "Building Spaces",
+      quickTitle: "Quick actions",
+      checksTitle: "Input checks",
+      psychroTitle: "Psychrometrics",
+      psychroRoomTitle: "Room for psychrometrics",
+      psRoomSelectLabel: "Select saved room",
+      loadRoomBtn: "Load room",
+      exportPsychroPdfBtn: "Export Psychrometrics PDF",
+      closePsychro: "Back to Loads",
+      openPsychroCta: "Open Psychrometrics",
+      openPsychroFromResults: "Open Psychrometrics",
+      recalcQuick: "Recalculate",
+      addRoomBtn: "Add Room",
+      roomNamePh: "Room name",
+      clearRoomsBtn: "Clear",
+      tabPsychro: "Psychrometrics",
+      btnCalc: "Calculate",
+      exportLoadPdfBtn: "Export Loads PDF"
+    },
+    el: {
+      heroSubtitle: "Εργαλείο υπολογισμού φορτίων ψύξης/θέρμανσης με καθοδηγούμενη ψυχρομετρία για κατοικίες και ελαφριά βιομηχανική χρήση.",
+      heroStepsTitle: "Τυπική Χρήση",
+      heroStep1: "1) Συμπλήρωσε τα δεδομένα από πάνω προς τα κάτω.",
+      heroStep2: "2) Κάνε υπολογισμό και έλεγξε τον διαχωρισμό (Qs/Ql).",
+      heroStep3: "3) Άνοιξε την ψυχρομετρία για έλεγχο προσαγωγής και στοιχείου.",
+      langLabel: "Γλώσσα",
+      sideTitle: "Παραδοχές & Σύνοψη",
+      assumpTitle: "Ενεργές παραδοχές",
+      formulasTitle: "Τύποι που χρησιμοποιούνται",
+      spaceMgrTitle: "Σύνθεση Κτιρίου (Χώροι)",
+      quickTitle: "Γρήγορες ενέργειες",
+      checksTitle: "Έλεγχοι εισόδων",
+      psychroTitle: "Ψυχρομετρία",
+      psychroRoomTitle: "Χώρος για Ψυχρομετρία",
+      psRoomSelectLabel: "Επιλογή αποθηκευμένου χώρου",
+      loadRoomBtn: "Φόρτωση χώρου",
+      exportPsychroPdfBtn: "Export Ψυχρομετρίας PDF",
+      closePsychro: "Επιστροφή στα Φορτία",
+      openPsychroCta: "Άνοιγμα Ψυχρομετρίας",
+      openPsychroFromResults: "Άνοιγμα Ψυχρομετρίας",
+      recalcQuick: "Επανυπολογισμός",
+      addRoomBtn: "Προσθήκη Χώρου",
+      roomNamePh: "Όνομα χώρου",
+      clearRoomsBtn: "Καθαρισμός",
+      tabPsychro: "Ψυχρομετρία",
+      btnCalc: "Υπολογισμός",
+      exportLoadPdfBtn: "Export Φορτίων PDF"
+    }
+  };
+
+  const OPTIONS = {
+    Mode: [
+      { v: "cool", en: "Cooling", el: "Ψύξη" },
+      { v: "heat", en: "Heating", el: "Θέρμανση" }
+    ],
+    Units: [
+      { v: "W", en: "W", el: "W" },
+      { v: "kW", en: "kW", el: "kW" }
+    ],
+    city: [
+      { v: "Athens|36|40", en: "Athens (36 C / 40%)", el: "Αθήνα (36 C / 40%)" },
+      { v: "Thessaloniki|35|50", en: "Thessaloniki (35 C / 50%)", el: "Θεσσαλονίκη (35 C / 50%)" },
+      { v: "Patra|34|55", en: "Patra (34 C / 55%)", el: "Πάτρα (34 C / 55%)" },
+      { v: "Heraklion|33|60", en: "Heraklion (33 C / 60%)", el: "Ηράκλειο (33 C / 60%)" },
+      { v: "Custom", en: "Custom", el: "Χειροκίνητα" }
+    ],
+    UwallPreset: [
+      { v: "1.80", en: "Old masonry (1.80)", el: "Παλιά τοιχοποιία (1.80)" },
+      { v: "1.20", en: "Single brick + plaster (1.20)", el: "Μονή οπτοπλινθοδομή + σοβάς (1.20)" },
+      { v: "1.00", en: "Double wall uninsulated (1.00)", el: "Διπλός τοίχος χωρίς μόνωση (1.00)" },
+      { v: "0.70", en: "Insulated 5 cm EPS (0.70)", el: "Μόνωση EPS 5 cm (0.70)" },
+      { v: "0.45", en: "Insulated 8 cm EPS (0.45)", el: "Μόνωση EPS 8 cm (0.45)" },
+      { v: "0.35", en: "Insulated 10 cm EPS (0.35)", el: "Μόνωση EPS 10 cm (0.35)" },
+      { v: "0.25", en: "High insulation 15 cm EPS (0.25)", el: "Υψηλή μόνωση EPS 15 cm (0.25)" },
+      { v: "0.55", en: "Industrial PU panel 40 mm (0.55)", el: "Βιομηχανικό panel PU 40 mm (0.55)" },
+      { v: "0.38", en: "Industrial PU/PIR panel 60 mm (0.38)", el: "Βιομηχανικό panel PU/PIR 60 mm (0.38)" },
+      { v: "0.28", en: "Industrial PU/PIR panel 80 mm (0.28)", el: "Βιομηχανικό panel PU/PIR 80 mm (0.28)" },
+      { v: "0.22", en: "Industrial PU/PIR panel 100 mm (0.22)", el: "Βιομηχανικό panel PU/PIR 100 mm (0.22)" },
+      { v: "0.65", en: "Mineral wool panel 50 mm (0.65)", el: "Panel πετροβάμβακα 50 mm (0.65)" },
+      { v: "0.48", en: "Mineral wool panel 80 mm (0.48)", el: "Panel πετροβάμβακα 80 mm (0.48)" },
+      { v: "0.45", en: "Concrete sandwich panel (0.45)", el: "Πάνελ sandwich σκυροδέματος (0.45)" },
+      { v: "0.90", en: "Precast concrete no insulation (0.90)", el: "Προκατασκευασμένο σκυρόδεμα χωρίς μόνωση (0.90)" },
+      { v: "custom", en: "Custom", el: "Χειροκίνητο" }
+    ],
+    UwinPreset: [
+      { v: "5.7", en: "Single clear (5.7)", el: "Μονό τζάμι (5.7)" },
+      { v: "2.8", en: "Double clear (2.8)", el: "Διπλό τζάμι (2.8)" },
+      { v: "1.6", en: "Double low-e (1.6)", el: "Διπλό low-e (1.6)" },
+      { v: "1.3", en: "Double low-e + Argon (1.3)", el: "Διπλό low-e + Argon (1.3)" },
+      { v: "1.0", en: "Triple low-e (1.0)", el: "Τριπλό low-e (1.0)" },
+      { v: "0.9", en: "Triple low-e + Argon (0.9)", el: "Τριπλό low-e + Argon (0.9)" },
+      { v: "0.8", en: "High-performance triple (0.8)", el: "Τριπλό υψηλής απόδοσης (0.8)" },
+      { v: "1.9", en: "Industrial frame thermally broken (1.9)", el: "Βιομηχανικό πλαίσιο με θερμοδιακοπή (1.9)" },
+      { v: "custom", en: "Custom", el: "Χειροκίνητο" }
+    ],
+    SHGCpreset: [
+      { v: "0.86", en: "Single clear (~0.86)", el: "Μονό τζάμι (~0.86)" },
+      { v: "0.70", en: "Double clear (~0.70)", el: "Διπλό τζάμι (~0.70)" },
+      { v: "0.55", en: "Double low-e (~0.55)", el: "Διπλό low-e (~0.55)" },
+      { v: "0.40", en: "Triple low-e (~0.40)", el: "Τριπλό low-e (~0.40)" },
+      { v: "0.30", en: "Solar-control glass (~0.30)", el: "Ηλιοπροστατευτικό υαλοστάσιο (~0.30)" }
+    ],
+    UroofPreset: [
+      { v: "0.05", en: "No exposed roof / internal ceiling (0.05)", el: "Χωρίς εκτεθειμένη οροφή / εσωτερική οροφή (0.05)" },
+      { v: "1.00", en: "Uninsulated slab (1.00)", el: "Πλάκα χωρίς μόνωση (1.00)" },
+      { v: "0.50", en: "XPS 5 cm (0.50)", el: "XPS 5 cm (0.50)" },
+      { v: "0.35", en: "XPS 8 cm (0.35)", el: "XPS 8 cm (0.35)" },
+      { v: "0.25", en: "XPS 12 cm (0.25)", el: "XPS 12 cm (0.25)" },
+      { v: "0.20", en: "XPS 15 cm (0.20)", el: "XPS 15 cm (0.20)" },
+      { v: "0.18", en: "XPS 20 cm (0.18)", el: "XPS 20 cm (0.18)" },
+      { v: "2.40", en: "Metal deck no insulation (2.40)", el: "Μεταλλική στέγη χωρίς μόνωση (2.40)" },
+      { v: "0.55", en: "Metal + PU panel 40 mm (0.55)", el: "Μεταλλική + panel PU 40 mm (0.55)" },
+      { v: "0.38", en: "Metal + PU/PIR panel 60 mm (0.38)", el: "Μεταλλική + panel PU/PIR 60 mm (0.38)" },
+      { v: "0.28", en: "Metal + PU/PIR panel 80 mm (0.28)", el: "Μεταλλική + panel PU/PIR 80 mm (0.28)" },
+      { v: "0.22", en: "Metal + PU/PIR panel 100 mm (0.22)", el: "Μεταλλική + panel PU/PIR 100 mm (0.22)" },
+      { v: "0.65", en: "Metal + mineral wool 50 mm (0.65)", el: "Μεταλλική + πετροβάμβακας 50 mm (0.65)" },
+      { v: "0.48", en: "Metal + mineral wool 80 mm (0.48)", el: "Μεταλλική + πετροβάμβακας 80 mm (0.48)" },
+      { v: "custom", en: "Custom", el: "Χειροκίνητο" }
+    ],
+    UfloorPreset: [
+      { v: "p|1.50", en: "Pilotis uninsulated (1.50)", el: "Pilotis χωρίς μόνωση (1.50)" },
+      { v: "p|0.90", en: "Pilotis light insulation 3 cm (0.90)", el: "Pilotis ελαφριά μόνωση 3 cm (0.90)" },
+      { v: "p|0.50", en: "Pilotis insulation 5 cm (0.50)", el: "Pilotis μόνωση 5 cm (0.50)" },
+      { v: "p|0.35", en: "Pilotis insulation 8 cm (0.35)", el: "Pilotis μόνωση 8 cm (0.35)" },
+      { v: "p|0.25", en: "Pilotis insulation 12 cm (0.25)", el: "Pilotis μόνωση 12 cm (0.25)" },
+      { v: "p|0.22", en: "Pilotis industrial panel 100 mm (0.22)", el: "Pilotis βιομηχανικό panel 100 mm (0.22)" },
+      { v: "g|1.20", en: "Ground floor uninsulated (1.20)", el: "Δάπεδο εδάφους χωρίς μόνωση (1.20)" },
+      { v: "g|0.80", en: "Ground floor light insulation 3 cm (0.80)", el: "Δάπεδο εδάφους ελαφριά μόνωση 3 cm (0.80)" },
+      { v: "g|0.50", en: "Ground floor insulation 5 cm (0.50)", el: "Δάπεδο εδάφους μόνωση 5 cm (0.50)" },
+      { v: "g|0.35", en: "Ground floor insulation 8 cm (0.35)", el: "Δάπεδο εδάφους μόνωση 8 cm (0.35)" },
+      { v: "g|0.25", en: "Ground floor insulation 12 cm (0.25)", el: "Δάπεδο εδάφους μόνωση 12 cm (0.25)" },
+      { v: "g|0.20", en: "Ground floor insulation 15 cm (0.20)", el: "Δάπεδο εδάφους μόνωση 15 cm (0.20)" },
+      { v: "g|0.30", en: "Industrial slab on ground (0.30)", el: "Βιομηχανική πλάκα επί εδάφους (0.30)" },
+      { v: "custom", en: "Custom", el: "Χειροκίνητο" }
+    ],
+    ACHinf: [
+      { v: "0.3", en: "Tight envelope (~0.3)", el: "Στεγανό κέλυφος (~0.3)" },
+      { v: "0.7", en: "Moderate (~0.7)", el: "Μέτριο (~0.7)" },
+      { v: "1.2", en: "Leaky/old (~1.2)", el: "Διαρροές/παλιό (~1.2)" }
+    ],
+    ACHnat: [
+      { v: "0", en: "Windows closed", el: "Κλειστά παράθυρα" },
+      { v: "1", en: "Tilt-open (~1)", el: "Ανακλινόμενο (~1)" },
+      { v: "3", en: "Open windows (~3)", el: "Ανοιχτά παράθυρα (~3)" }
+    ],
+    MechMode: [
+      { v: "ach", en: "Use ACH", el: "Με ACH" },
+      { v: "flow", en: "Use m3/h", el: "Με m3/h" }
+    ],
+    PeopleActivity: [
+      { v: "75|55", en: "Seated (S=75, L=55)", el: "Καθιστή δραστηριότητα (S=75, L=55)" },
+      { v: "100|75", en: "Light activity (100/75)", el: "Ελαφριά δραστηριότητα (100/75)" },
+      { v: "130|95", en: "Moderate activity (130/95)", el: "Μέτρια δραστηριότητα (130/95)" },
+      { v: "160|120", en: "Industrial light work (160/120)", el: "Ελαφριά βιομηχανική εργασία (160/120)" }
+    ],
+    PS_ViewMode: [
+      { v: "simple", en: "Simple", el: "Απλό" },
+      { v: "expert", en: "Expert", el: "Προχωρημένο" }
+    ],
+    PS_Mode: [
+      { v: "fixT", en: "Fixed Tsa", el: "Σταθερό Tsa" },
+      { v: "fixRH", en: "Fixed RHsa% (known SA required)", el: "Σταθερό RHsa% (απαιτεί γνωστό SA)" }
+    ],
+    PS_SA_RH_mode: [
+      { v: "sat", en: "Saturated at Tsa (100%)", el: "Κορεσμός στο Tsa (100%)" },
+      { v: "roomw", en: "Same humidity ratio as room", el: "Ίδιος λόγος υγρασίας με τον χώρο" },
+      { v: "manual", en: "Manual RHsa%", el: "Χειροκίνητο RHsa%" }
+    ],
+    PS_CoilMode: [
+      { v: "off", en: "Off", el: "Ανενεργό" },
+      { v: "bf", en: "Given BF -> solve ADP", el: "Με BF -> λύση ADP" },
+      { v: "adp", en: "Given ADP -> solve BF", el: "Με ADP -> λύση BF" }
+    ]
+  };
+
+  function fillSelect(id, items) {
+    const sel = $(id);
+    if (!sel || !items) return;
+    const v = sel.value;
+    sel.innerHTML = items.map((it) => `<option value="${it.v}">${it[currentLang]}</option>`).join("");
+    sel.value = v;
+    if (sel.value !== v && items[0]) sel.value = items[0].v;
+  }
+
+  function collapseBilingualPairs() {
+    const nodes = document.querySelectorAll("h2,h3,label,.desc,button,summary,th");
+    nodes.forEach((el) => {
+      if (!el) return;
+      const raw = el.dataset.rawText || el.textContent || "";
+      if (!el.dataset.rawText) el.dataset.rawText = raw;
+      if (!raw.includes(" / ")) return;
+      const parts = raw.split(" / ");
+      if (parts.length < 2) return;
+      el.textContent = currentLang === "el" ? parts[1] : parts[0];
+    });
+  }
+
+  function setTxt(id, text) {
+    const el = $(id);
+    if (el && typeof text === "string") el.textContent = text;
+  }
+
+  function modeTabLabel() {
+    const mode = str("Mode", "cool");
+    if (currentLang === "el") return mode === "heat" ? "Απώλειες" : "Φορτία";
+    return mode === "heat" ? "Heat Losses" : "Loads";
+  }
+
+  function applyLanguage() {
+    const d = I18N[currentLang] || I18N.el;
+    setTxt("heroSubtitle", d.heroSubtitle);
+    setTxt("heroStepsTitle", d.heroStepsTitle);
+    setTxt("heroStep1", d.heroStep1);
+    setTxt("heroStep2", d.heroStep2);
+    setTxt("heroStep3", d.heroStep3);
+    setTxt("langLabel", d.langLabel);
+    setTxt("sideTitle", d.sideTitle);
+    setTxt("assumpTitle", d.assumpTitle);
+    setTxt("formulasTitle", d.formulasTitle);
+    setTxt("spaceMgrTitle", d.spaceMgrTitle);
+    setTxt("quickTitle", d.quickTitle);
+    setTxt("checksTitle", d.checksTitle);
+    setTxt("psychroTitle", d.psychroTitle);
+    setTxt("psychroRoomTitle", d.psychroRoomTitle);
+    setTxt("psRoomSelectLabel", d.psRoomSelectLabel);
+    setTxt("loadRoomBtn", d.loadRoomBtn);
+    setTxt("exportPsychroPdfBtn", d.exportPsychroPdfBtn);
+    setTxt("closePsychro", d.closePsychro);
+    setTxt("openPsychroCta", d.openPsychroCta);
+    setTxt("openPsychroFromResults", d.openPsychroFromResults);
+    setTxt("recalcQuick", d.recalcQuick);
+    setTxt("addRoomBtn", d.addRoomBtn);
+    setTxt("clearRoomsBtn", d.clearRoomsBtn);
+    setTxt("tabPsychro", d.tabPsychro);
+    setTxt("btnCalc", d.btnCalc);
+    setTxt("exportLoadPdfBtn", d.exportLoadPdfBtn);
+
+    if ($("roomName")) $("roomName").placeholder = d.roomNamePh;
+    if ($("tabLoads")) $("tabLoads").textContent = modeTabLabel();
+
+    Object.keys(OPTIONS).forEach((id) => fillSelect(id, OPTIONS[id]));
+
+    collapseBilingualPairs();
+    renderAssumptions();
+    renderSpaces();
+    renderLiveChecks();
+  }
+
+  function captureInputs() {
+    const data = {};
+    INPUT_IDS.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      data[id] = el.value;
+    });
+    return data;
+  }
+
+  function applyInputSnapshot(data) {
+    if (!data) return;
+    Object.entries(data).forEach(([id, value]) => {
+      const el = $(id);
+      if (el) el.value = value;
+    });
+    updateModeTheme();
+    calcLoad();
+    syncPsychroUiState();
+    if ($("psychroPane")?.style.display !== "none") calcPsychro();
+  }
+
+  function upsertSpacePsychro() {
+    const selected = str("psRoomSelect", "");
+    if (!selected || !lastPsychro) return;
+    const idx = spaces.findIndex((s) => s.id === selected);
+    if (idx >= 0) spaces[idx].psychro = { ...lastPsychro };
+  }
+
+  function renderSpaces() {
+    const host = $("spacesTree");
+    const totals = $("buildingTotals");
+    if (!host || !totals) return;
+
+    if (!spaces.length) {
+      host.textContent = currentLang === "el" ? "Δεν έχουν προστεθεί χώροι." : "No spaces added yet.";
+      totals.textContent = "";
+      refreshRoomSelect();
+      return;
+    }
+
+    host.innerHTML = spaces.map((s) => {
+      const mTxt = currentLang === "el"
+        ? (s.mode === "cool" ? "Ψύξη" : "Θέρμανση")
+        : (s.mode === "cool" ? "Cooling" : "Heating");
+      return `<div class="space-row"><b>${s.name}</b><div class="meta">${mTxt} | ${fmtPower(s.totalW)}</div><div class="meta">Qs=${fmtPower(s.qsW)} | Ql=${fmtPower(s.qlW)}</div><div style="margin-top:6px"><button class="ghost" type="button" onclick="window.__removeSpace('${s.id}')">x</button></div></div>`;
+    }).join("");
+
+    const coolTot = spaces.filter((s) => s.mode === "cool").reduce((a, b) => a + b.totalW, 0);
+    const heatTot = spaces.filter((s) => s.mode === "heat").reduce((a, b) => a + b.totalW, 0);
+
+    if (currentLang === "el") {
+      totals.innerHTML = `Σύνολο Ψύξης: <b>${fmtPower(coolTot)}</b> | Σύνολο Απωλειών: <b>${fmtPower(heatTot)}</b>`;
+    } else {
+      totals.innerHTML = `Total Cooling: <b>${fmtPower(coolTot)}</b> | Total Heat Losses: <b>${fmtPower(heatTot)}</b>`;
+    }
+
+    refreshRoomSelect();
+  }
+
+  function refreshRoomSelect() {
+    const sel = $("psRoomSelect");
+    if (!sel) return;
+    const cur = sel.value;
+    const first = currentLang === "el" ? "Τρέχοντα δεδομένα" : "Current inputs";
+    const opts = [`<option value="">${first}</option>`].concat(
+      spaces.map((s) => `<option value="${s.id}">${s.name}</option>`)
+    );
+    sel.innerHTML = opts.join("");
+    if (cur) sel.value = cur;
+  }
+
+  window.__removeSpace = (id) => {
+    spaces = spaces.filter((s) => s.id !== id);
+    renderSpaces();
+  };
+
+  function addCurrentRoom() {
+    if (!lastCalc) {
+      const h = $("liveChecks");
+      if (h) h.innerHTML = currentLang==="el" ? '<div class="warn">Πρώτα κάνε υπολογισμό για να αποθηκεύσεις χώρο.</div>' : '<div class="warn">Run calculation first before saving a room.</div>';
+      return;
+    }
+    const nameIn = (str("roomName", "") || "").trim();
+    const idx = spaces.length + 1;
+    const name = nameIn || (currentLang === "el" ? `Χώρος ${idx}` : `Space ${idx}`);
+    const id = `r${Date.now()}${Math.floor(Math.random()*1000)}`;
+
+    spaces.push({
+      id,
+      name,
+      mode: lastCalc.mode,
+      totalW: lastCalc.Qt,
+      qsW: lastCalc.Qs,
+      qlW: lastCalc.Ql,
+      inputs: captureInputs(),
+      assumptions: [...lastCalc.assumptions],
+      psychro: lastPsychro ? { ...lastPsychro } : null
+    });
+
+    if ($("roomName")) $("roomName").value = "";
+    renderSpaces();
+  }
+
+  function loadSelectedRoom() {
+    const id = str("psRoomSelect", "");
+    if (!id) return;
+    const room = spaces.find((s) => s.id === id);
+    if (!room) return;
+    applyInputSnapshot(room.inputs);
+    const hint = $("psychroRoomHint");
+    if (hint) {
+      hint.textContent = currentLang === "el"
+        ? `Φορτώθηκε ο χώρος: ${room.name}`
+        : `Loaded room: ${room.name}`;
+    }
+  }
+
+  function exportLoadsPdf() {
+    const winRef = window.open("", "_blank");
+    if (!winRef) return;
+    const title = currentLang === "el" ? "Αναφορά Φορτίων Κτιρίου" : "Building Load Report";
+    const rows = spaces.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.mode}</td><td>${fmtPower(s.totalW)}</td><td>${fmtPower(s.qsW)}</td><td>${fmtPower(s.qlW)}</td></tr>`).join("");
+    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Λειτουργία':'Mode'}</th><th>${currentLang==='el'?'Σύνολο':'Total'}</th><th>Qs</th><th>Ql</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    winRef.document.close();
+    winRef.focus();
+    setTimeout(() => winRef.print(), 250);
+  }
+
+  function exportPsychroPdf() {
+    const id = str("psRoomSelect", "");
+    let room = null;
+    if (id) room = spaces.find((s) => s.id === id) || null;
+    const data = room?.psychro || lastPsychro;
+    if (!data) {
+      const h = $("psychroRoomHint");
+      if (h) h.textContent = currentLang === "el" ? "Δεν υπάρχουν ψυχρομετρικά δεδομένα για export." : "No psychrometrics data to export.";
+      return;
+    }
+    const winRef = window.open("", "_blank");
+    if (!winRef) return;
+    const title = currentLang === "el" ? "Αναφορά Ψυχρομετρίας" : "Psychrometrics Report";
+    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><p>${currentLang==='el'?'Χώρος':'Room'}: ${room?room.name:(currentLang==='el'?'Τρέχον':'Current')}</p><table><tbody><tr><th>SA [m3/h]</th><td>${data.VsaH.toFixed(0)}</td></tr><tr><th>Tmix [degC]</th><td>${data.Tm.toFixed(2)}</td></tr><tr><th>Tsa [degC]</th><td>${data.Tsa.toFixed(2)}</td></tr><tr><th>RHsa [%]</th><td>${data.RHs.toFixed(1)}</td></tr><tr><th>Qcoil total</th><td>${fmtPower(data.Qct)}</td></tr><tr><th>Qs</th><td>${fmtPower(data.Qcs)}</td></tr><tr><th>Ql</th><td>${fmtPower(data.Qcl)}</td></tr></tbody></table></body></html>`);
+    winRef.document.close();
+    winRef.focus();
+    setTimeout(() => winRef.print(), 250);
+  }
+
+  function renderAssumptions() {
+    const host = $("assumptionsList");
+    if (!host) return;
+    const items = [];
+    const mode = str("Mode", "cool");
+    const modeTxt = currentLang === "el" ? (mode === "cool" ? "Ψύξη" : "Θέρμανση") : (mode === "cool" ? "Cooling" : "Heating");
+    items.push(`${currentLang==='el'?'Λειτουργία':'Mode'}: ${modeTxt}`);
+    items.push(`${currentLang==='el'?'Πόλη':'City'}: ${$("city")?.selectedOptions?.[0]?.textContent || '-'}`);
+    items.push(`Tin/RHin: ${num("Tin",24).toFixed(1)} degC / ${num("RHin",45).toFixed(0)}%`);
+    items.push(`Tout/RHout: ${num("Tout",36).toFixed(1)} degC / ${num("RHout",40).toFixed(0)}%`);
+    items.push(`Wall U: ${$("UwallPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
+    items.push(`Window U: ${$("UwinPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
+    items.push(`Roof U: ${$("UroofPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
+    items.push(`Floor U: ${$("UfloorPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
+    items.push(`Mech: ${$("MechMode")?.selectedOptions?.[0]?.textContent || '-'} | ${num("Qmech",0).toFixed(0)} m3/h`);
+    host.innerHTML = items.map((x)=>`- ${x}`).join('<br/>');
+  }
+
+  function bindCustomSelect(presetId, customId) {
+    const p = $(presetId);
+    const c = $(customId);
+    if (!p || !c) return;
+    const sync = () => {
+      c.disabled = p.value !== "custom";
+    };
+    p.addEventListener("change", sync);
+    sync();
+  }
+
+  function bindPercentGroup(ids, hintId, label) {
+    const els = ids.map((id) => $(id)).filter(Boolean);
+    const hint = $(hintId);
+    if (els.length !== ids.length) return;
+
+    const safe = (el) => {
+      const v = clamp(parseFloat(el.value) || 0, 0, 100);
+      el.value = String(Math.round(v * 10) / 10);
+      return v;
+    };
+
+    const update = () => {
+      const sum = els.reduce((a, el) => a + (parseFloat(el.value) || 0), 0);
+      const rem = Math.max(0, 100 - sum);
+      if (hint) {
+        hint.innerHTML = `${label} total: ${sum.toFixed(1)}% | Remaining: ${rem.toFixed(1)}% <span class="${sum <= 100.001 ? "ok" : "warnTxt"}">${sum <= 100.001 ? "OK" : "auto-limited"}</span>`;
+      }
+    };
+
+    const onChange = (el) => {
+      safe(el);
+      const others = els.filter((x) => x !== el).reduce((a, x) => a + safe(x), 0);
+      const maxAllowed = Math.max(0, 100 - others);
+      const current = parseFloat(el.value) || 0;
+      if (current > maxAllowed) {
+        el.value = String(Math.round(maxAllowed * 10) / 10);
+      }
+      update();
+      renderLiveChecks();
+    };
+
+    els.forEach((el) => {
+      el.addEventListener("input", () => onChange(el));
+      el.addEventListener("change", () => onChange(el));
+    });
+
+    update();
+  }
+  function bindFloorHint() {
+    const p = $("UfloorPreset");
+    const c = $("UfloorCustom");
+    const h = $("floorPresetHint");
+    if (!p || !h) return;
+
+    const sync = () => {
+      const v = String(p.value || "g|0.50");
+      const boundary = v.startsWith("p|") ? "pilotis" : (v === "custom" ? "custom" : "ground");
+
+      if (boundary === "pilotis") {
+        h.textContent = "Floor boundary: pilotis (outdoor delta-T used).";
+      } else if (boundary === "ground") {
+        h.textContent = "Floor boundary: ground (cooling gain often limited; heating losses counted).";
+      } else {
+        h.textContent = `Custom floor U active (${c?.value || ""}). Treated as ground unless preset includes p|.`;
+      }
+    };
+
+    p.addEventListener("change", sync);
+    c?.addEventListener("input", sync);
+    sync();
+  }
+
+  const cityData = {
+    Athens: { cool: { T: 36, RH: 40 }, heat: { T: 2, RH: 70 }, ground: { cool: 15, heat: 12 }, attic: { cool: 35, heat: 8 }, adj: { cool: 30, heat: 12 } },
+    Thessaloniki: { cool: { T: 35, RH: 50 }, heat: { T: 0, RH: 75 }, ground: { cool: 14, heat: 10 }, attic: { cool: 34, heat: 6 }, adj: { cool: 28, heat: 10 } },
+    Patra: { cool: { T: 34, RH: 55 }, heat: { T: 3, RH: 70 }, ground: { cool: 15, heat: 12 }, attic: { cool: 34, heat: 8 }, adj: { cool: 29, heat: 12 } },
+    Heraklion: { cool: { T: 33, RH: 60 }, heat: { T: 7, RH: 65 }, ground: { cool: 17, heat: 14 }, attic: { cool: 35, heat: 10 }, adj: { cool: 30, heat: 14 } }
+  };
+
+  function applyCity() {
+    const mode = str("Mode", "cool");
+    const cityVal = str("city", "Custom");
+    if (cityVal === "Custom") return;
+
+    const city = cityVal.split("|")[0];
+    const cfg = cityData[city];
+    if (!cfg) return;
+
+    const e = cfg[mode === "cool" ? "cool" : "heat"];
+    $("Tout").value = e.T;
+    $("RHout").value = e.RH;
+    $("Tadj").value = cfg.adj[mode === "cool" ? "cool" : "heat"];
+    $("Tground").value = cfg.ground[mode === "cool" ? "cool" : "heat"];
+    $("Tattic").value = cfg.attic[mode === "cool" ? "cool" : "heat"];
+  }
+
+  function applyModeDefaults() {
+    const mode = str("Mode", "cool");
+    if (mode === "heat") {
+      $("Tin").value = "22";
+      $("RHin").value = "40";
+    } else {
+      $("Tin").value = "24";
+      $("RHin").value = "45";
+    }
+  }
+
+  function updateModeTheme() {
+    const mode = str("Mode", "cool");
+    document.body.setAttribute("data-mode", mode);
+    if ($("modeText")) {
+      if (currentLang === "el") {
+        $("modeText").textContent = mode === "cool" ? "Ψύξη" : "Θέρμανση";
+      } else {
+        $("modeText").textContent = mode === "cool" ? "Cooling" : "Heating";
+      }
+    }
+    if ($("unitsText")) {
+      $("unitsText").textContent = str("Units", "W");
+    }
+    if ($("tabLoads")) {
+      $("tabLoads").textContent = modeTabLabel();
+    }
+  }
+
+  const winTableBody = document.querySelector("#winTable tbody");
+  const orientations = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
+  function addWindowRow(o = "W", area = 3, shade = 1) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <select class="wg-orient">
+          ${orientations.map((x) => `<option value="${x}" ${x === o ? "selected" : ""}>${x}</option>`).join("")}
+        </select>
+      </td>
+      <td><input class="wg-area" type="number" step="0.1" value="${area}"></td>
+      <td><input class="wg-shade" type="number" step="0.1" value="${shade}"></td>
+      <td><button class="ghost wg-del" type="button">x</button></td>
+    `;
+    tr.querySelector(".wg-del")?.addEventListener("click", () => tr.remove());
+    winTableBody?.appendChild(tr);
+  }
+
+  const devLibrary = [
+    { name: "Desktop PC", W: 120 },
+    { name: "Monitor", W: 30 },
+    { name: "TV LED 55\"", W: 120 },
+    { name: "Domestic refrigerator", W: 60 },
+    { name: "Microwave oven", W: 1200 },
+    { name: "Laser printer", W: 350 },
+    { name: "Server rack (small)", W: 700 },
+    { name: "Industrial control panel", W: 250 },
+    { name: "Small process motor", W: 1200 },
+    { name: "Chargers / small devices", W: 50 }
+  ];
+
+  const devSel = $("devLib");
+  const devTableBody = document.querySelector("#devTable tbody");
+
+  function addDeviceRow(device) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${device.name}</td>
+      <td><input class="dv-W" type="number" step="10" value="${device.W}"></td>
+      <td><input class="dv-duty" type="number" step="0.05" value="1"></td>
+      <td><button class="ghost dv-del" type="button">x</button></td>
+    `;
+    tr.querySelector(".dv-del")?.addEventListener("click", () => tr.remove());
+    devTableBody?.appendChild(tr);
+  }
+
+  function drawPie(id, sensible, latent) {
+    const c = $(id);
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+
+    const data = { ...sensible, ...latent };
+    const keys = Object.keys(data);
+    const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
+
+    ctx.clearRect(0, 0, c.width, c.height);
+
+    const cx = 180;
+    const cy = 210;
+    const r = 140;
+
+    let start = 0;
+    keys.forEach((k, i) => {
+      const v = data[k];
+      if (v <= 0) return;
+      const ang = (v / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, start + ang);
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${Math.floor((i / Math.max(1, keys.length)) * 300)} 62% 52% / 0.92)`;
+      ctx.fill();
+      start += ang;
+    });
+
+    ctx.font = "12px Segoe UI";
+    ctx.fillStyle = "#eaf4ff";
+
+    let y = 20;
+    const xl = 360;
+    keys.forEach((k, i) => {
+      const v = data[k];
+      if (v < 1) return;
+      const p = ((v / total) * 100).toFixed(1);
+      const h = Math.floor((i / Math.max(1, keys.length)) * 300);
+      ctx.fillStyle = `hsl(${h} 62% 52% / 0.92)`;
+      ctx.fillRect(xl, y - 10, 14, 14);
+      ctx.fillStyle = "#eaf4ff";
+      ctx.fillText(`${k} - ${p}%`, xl + 20, y);
+      y += 18;
+    });
+  }
+
+  function calcLoad() {
+    const L = num("L", 0);
+    const Wm = num("W", 0);
+    const H = num("H", 0);
+    const Afloor = L * Wm;
+    const Aroof = Afloor;
+    const V = L * Wm * H;
+
+    const mode = str("Mode", "cool");
+    const Tin = num("Tin", 24);
+    const RHin = num("RHin", 45);
+    const Tout = num("Tout", 36);
+    const RHout = num("RHout", 40);
+
+    const dTbase = Math.max(0, mode === "cool" ? Tout - Tin : Tin - Tout);
+
+    const Uwall = str("UwallPreset") === "custom" ? num("UwallCustom", 0.7) : parseFloat(str("UwallPreset", "0.7"));
+    const Uwin = str("UwinPreset") === "custom" ? num("UwinCustom", 2.8) : parseFloat(str("UwinPreset", "2.8"));
+    const Uroof = str("UroofPreset") === "custom" ? num("UroofCustom", 0.35) : parseFloat(str("UroofPreset", "0.35"));
+
+    const floorPreset = str("UfloorPreset", "g|0.50");
+    let Ufloor = 0.5;
+    let floorBoundary = "ground";
+
+    if (floorPreset === "custom") {
+      Ufloor = num("UfloorCustom", 0.5);
+    } else if (floorPreset.includes("|")) {
+      const [b, u] = floorPreset.split("|");
+      Ufloor = parseFloat(u);
+      floorBoundary = (b || "g").trim().toLowerCase() === "p" ? "pilotis" : "ground";
+      if (!Number.isFinite(Ufloor)) Ufloor = 0.5;
+    } else {
+      Ufloor = parseFloat(floorPreset);
+      if (!Number.isFinite(Ufloor)) Ufloor = 0.5;
+    }
+
+    const SHGC = num("SHGCpreset", 0.7);
+    const Lext = num("LwallExt", 0);
+    const Lunh = num("LwallUnh", 0);
+    const Tadj = num("Tadj", mode === "cool" ? 30 : 12);
+
+    const AextWall = Lext * H;
+    const AunhWall = Lunh * H;
+
+    let Awin = 0;
+    let QwinCond = 0;
+    let QwinSolar = 0;
+
+    const orientMap = { N: 120, NE: 220, E: 350, SE: 380, S: 400, SW: 450, W: 500, NW: 220 };
+
+    document.querySelectorAll("#winTable tbody tr").forEach((tr) => {
+      const o = tr.querySelector(".wg-orient")?.value || "S";
+      const a = parseFloat(tr.querySelector(".wg-area")?.value) || 0;
+      const sh = parseFloat(tr.querySelector(".wg-shade")?.value) || 1;
+
+      Awin += a;
+      QwinCond += a * Uwin * dTbase;
+      if (mode === "cool") {
+        QwinSolar += a * SHGC * (orientMap[o] || 350) * clamp(sh, 0, 1);
+      }
+    });
+
+    const AextNet = Math.max(0, AextWall - Awin);
+    const QwallExt = AextNet * Uwall * dTbase;
+    const QwallUnh = AunhWall * Uwall * Math.max(0, mode === "cool" ? Tadj - Tin : Tin - Tadj);
+    let RpE = clamp(num("RoofPctExt", 100) / 100, 0, 1);
+    let RpU = clamp(num("RoofPctUnh", 0) / 100, 0, 1);
+    let RpH = clamp(num("RoofPctHeated", 0) / 100, 0, 1);
+
+    let FpG = clamp(num("FloorPctGround", 100) / 100, 0, 1);
+    let FpU = clamp(num("FloorPctUnh", 0) / 100, 0, 1);
+    let FpH = clamp(num("FloorPctHeated", 0) / 100, 0, 1);
+
+    const roofSum = RpE + RpU + RpH;
+    if (roofSum > 1) {
+      RpE /= roofSum; RpU /= roofSum; RpH /= roofSum;
+    }
+
+    const floorSum = FpG + FpU + FpH;
+    if (floorSum > 1) {
+      FpG /= floorSum; FpU /= floorSum; FpH /= floorSum;
+    }
+
+    const Tattic = num("Tattic", mode === "cool" ? 35 : 8);
+    const Tground = num("Tground", mode === "cool" ? 15 : 12);
+
+    const QroofExt = (Aroof * RpE) * Uroof * dTbase;
+    const QroofUnh = (Aroof * RpU) * Uroof * Math.max(0, mode === "cool" ? Tattic - Tin : Tin - Tattic);
+
+    const dTfloorGround = floorBoundary === "pilotis"
+      ? dTbase
+      : (mode === "cool" ? 0 : Math.max(0, Tin - Tground));
+
+    const QfloorG = (Afloor * FpG) * Ufloor * dTfloorGround;
+    const QfloorU = (Afloor * FpU) * Ufloor * Math.max(0, mode === "cool" ? Tadj - Tin : Tin - Tadj);
+
+    const ACHinf = num("ACHinf", 0);
+    const ACHnat = num("ACHnat", 0);
+    const mechMode = str("MechMode", "ach");
+
+    let ACHmech = 0;
+    const Qmech = num("Qmech", 0) / 3600;
+    if (mechMode === "ach") {
+      ACHmech = num("ACHmech", 0);
+    }
+
+    const Vdot = ((ACHinf + ACHnat + ACHmech) * V / 3600) + Qmech;
+    const mdot = Vdot * rho;
+
+    const win = wTRH(Tin, RHin);
+    const wout = wTRH(Tout, RHout);
+    const hin = hTw(Tin, win);
+    const hout = hTw(Tout, wout);
+
+    const dTv = Math.abs(Tout - Tin);
+    const QventS = mdot * cp * dTv * 1000;
+    let QventL = 0;
+    if (mode === "cool") {
+      const Qt = mdot * Math.max(0, hout - hin) * 1000;
+      QventL = Math.max(0, Qt - QventS);
+    }
+
+    const VdotM = ((ACHmech * V) / 3600) + Qmech;
+    const mdotM = VdotM * rho;
+    const QmechS = mdotM * cp * dTv * 1000;
+    let QmechL = 0;
+    if (mode === "cool") {
+      const QtM = mdotM * Math.max(0, hout - hin) * 1000;
+      QmechL = Math.max(0, QtM - QmechS);
+    }
+
+    const nPeople = num("nPeople", 0);
+    const [Ps, Pl] = str("PeopleActivity", "100|75").split("|").map(parseFloat);
+    const QpS = nPeople * (Number.isFinite(Ps) ? Ps : 100);
+    const QpL = nPeople * (Number.isFinite(Pl) ? Pl : 75);
+
+    const Qlight = num("LightingWm2", 8) * Afloor;
+
+    let Qdev = 0;
+    document.querySelectorAll("#devTable tbody tr").forEach((tr) => {
+      const Wv = parseFloat(tr.querySelector(".dv-W")?.value) || 0;
+      const duty = clamp(parseFloat(tr.querySelector(".dv-duty")?.value) || 1, 0, 1);
+      Qdev += Wv * duty;
+    });
+
+    let sensible = {};
+    let latent = {};
+
+    if (mode === "cool") {
+      sensible = {
+        "External walls": QwallExt,
+        "Walls to unconditioned": QwallUnh,
+        "Roof to outdoor": QroofExt,
+        "Roof to unconditioned": QroofUnh,
+        "Windows conduction": QwinCond,
+        "Windows solar": QwinSolar,
+        "Floor to ground/pilotis": QfloorG,
+        "Floor to unconditioned": QfloorU,
+        "Ventilation sensible": QventS,
+        "Lighting": Qlight,
+        "Equipment": Qdev,
+        "People sensible": QpS
+      };
+
+      latent = {
+        "Ventilation latent": QventL,
+        "People latent": QpL
+      };
+    } else {
+      sensible = {
+        "External walls losses": QwallExt,
+        "Walls to unconditioned losses": QwallUnh,
+        "Roof to outdoor losses": QroofExt,
+        "Roof to unconditioned losses": QroofUnh,
+        "Windows conduction losses": QwinCond,
+        "Floor to ground/pilotis losses": QfloorG,
+        "Floor to unconditioned losses": QfloorU,
+        "Ventilation sensible losses": QventS
+      };
+      latent = {};
+    }
+
+    const Qs = Object.values(sensible).reduce((a, b) => a + b, 0);
+    const Ql = Object.values(latent).reduce((a, b) => a + b, 0);
+    const Qt = Qs + Ql;
+
+    const list = (parts) => Object.entries(parts)
+      .filter(([, v]) => v > 1)
+      .map(([k, v]) => `<div class="rowline"><span>${k}</span><span>${fmtPower(v)}</span></div>`)
+      .join("");
+
+    const resultTitle = mode === "cool"
+      ? (currentLang === "el" ? "Ψυκτικό Φορτίο" : "Cooling Load")
+      : (currentLang === "el" ? "Θερμικές Απώλειες" : "Heating Losses");
+
+    const result = $("result");
+    if (result) {
+      result.innerHTML = `
+        <div class="kpi kpi-main">
+          <div class="muted">${resultTitle}</div>
+          <b>${fmtPower(Qt)}</b>
+        </div>
+
+        <div class="section">
+          <h2>Sensible Breakdown</h2>
+          ${list(sensible)}
+        </div>
+
+        ${mode === "cool" ? `
+          <div class="section">
+            <h2>Latent Breakdown</h2>
+            ${list(latent)}
+          </div>
+        ` : ""}
+
+        <div class="section">
+          <h2>Totals</h2>
+          <div class="rowline"><span>Total sensible</span><span id="sumQsVal" data-w="${Qs}">${fmtPower(Qs)}</span></div>
+          <div class="rowline"><span>Total latent</span><span id="sumQlVal" data-w="${Ql}">${fmtPower(Ql)}</span></div>
+        </div>
+
+        ${VdotM > 0 ? `
+          <div class="section">
+            <h2>Mechanical OA contribution</h2>
+            <div class="rowline"><span>Flow rate</span><span>${(VdotM * 3600).toFixed(0)} m3/h</span></div>
+            <div class="rowline"><span>Sensible</span><span>${fmtPower(QmechS)}</span></div>
+            <div class="rowline"><span>Latent</span><span>${fmtPower(QmechL)}</span></div>
+          </div>
+        ` : ""}
+
+        ${mode === "heat" ? `<div class="warn">${currentLang==="el"?"Η θέρμανση υπολογίζει απώλειες κελύφους/αερισμού/αγωγιμότητας.":"Heating mode reports envelope/ventilation/conduction losses."}</div>` : ""}
+      `;
+    }
+
+    lastCalc = {
+      mode,
+      Qt,
+      Qs,
+      Ql,
+      sensible: { ...sensible },
+      latent: { ...latent },
+      assumptions: [
+        $("city")?.selectedOptions?.[0]?.textContent || "-",
+        $("UwallPreset")?.selectedOptions?.[0]?.textContent || "-",
+        $("UwinPreset")?.selectedOptions?.[0]?.textContent || "-",
+        $("UroofPreset")?.selectedOptions?.[0]?.textContent || "-",
+        $("UfloorPreset")?.selectedOptions?.[0]?.textContent || "-"
+      ]
+    };
+
+    drawPie("pie", sensible, latent);
+    renderAssumptions();
+    renderLiveChecks();
+    renderPsychroSummary();
+
+    if ($("psychroPane")?.style.display !== "none") {
+      calcPsychro();
+    }
+  }
+
+  function snapshotRoom() {
+    try {
+      const U = str("Units", "W");
+      const M = str("Mode", "cool");
+      const L = num("L", 0);
+      const Wm = num("W", 0);
+      const H = num("H", 0);
+      const V = L * Wm * H;
+
+      const Tin = num("Tin", 24);
+      const RHin = num("RHin", 45);
+      const Tout = num("Tout", 36);
+      const RHout = num("RHout", 40);
+
+      const mechMode = str("MechMode", "ach");
+      const ACHm = mechMode === "ach" ? num("ACHmech", 0) : 0;
+      const Qm = mechMode === "flow" ? num("Qmech", 0) : 0;
+
+      const Vm = (ACHm * V / 3600) + (Qm / 3600);
+      const md = Vm * rho;
+
+      const win = wTRH(Tin, RHin);
+      const wout = wTRH(Tout, RHout);
+      const hin = hTw(Tin, win);
+      const hout = hTw(Tout, wout);
+
+      const dT = Math.abs(Tout - Tin);
+      const Qms = md * cp * dT * 1000;
+      const Qmt = M === "cool" ? md * Math.max(0, hout - hin) * 1000 : 0;
+      const Qml = M === "cool" ? Math.max(0, Qmt - Qms) : 0;
+
+      const qs = parseFloat($("sumQsVal")?.getAttribute("data-w") || "NaN");
+      const ql = parseFloat($("sumQlVal")?.getAttribute("data-w") || "NaN");
+
+      return {
+        U, M,
+        Tin, RHin, win, hin,
+        Tout, RHout, wout, hout,
+        Vm, md, Qms, Qml,
+        qs, ql, qt: qs + ql
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function renderPsychroSummary() {
+    const s = snapshotRoom();
+    const el = $("psychroSummary");
+    if (!el) return;
+
+    if (!s || !Number.isFinite(s.qs)) {
+      el.innerHTML = '<div class="warn">Run load calculation first.</div>';
+      return;
+    }
+
+    const shr = s.qs && s.qt ? (s.qs / s.qt) * 100 : 0;
+
+    el.innerHTML = `
+      <div class="grid cols-3">
+        <div class="kpi">
+          <div class="muted">Return Air (RA)</div>
+          <b>${s.Tin.toFixed(1)} degC / ${s.RHin.toFixed(0)}% RH</b>
+          <div>w=${s.win.toFixed(4)} kg/kg</div>
+          <div>h=${s.hin.toFixed(1)} kJ/kg</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Outdoor Air (OA)</div>
+          <b>${s.Tout.toFixed(1)} degC / ${s.RHout.toFixed(0)}% RH</b>
+          <div>w=${s.wout.toFixed(4)} kg/kg</div>
+          <div>h=${s.hout.toFixed(1)} kJ/kg</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Mechanical OA</div>
+          <b>${(s.Vm * 3600).toFixed(0)} m3/h</b>
+          <div>m_dot=${s.md.toFixed(3)} kg/s</div>
+          <div>Qs=${fmtPower(s.Qms)} - Ql=${fmtPower(s.Qml)}</div>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:10px">
+        <div class="kpi">
+          <div class="muted">Room totals</div>
+          <b>${fmtPower(s.qt || 0)}</b>
+          <div>Qs=${fmtPower(s.qs || 0)} - Ql=${fmtPower(s.ql || 0)}</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">SHR</div>
+          <b>${shr.toFixed(1)}%</b>
+          <div>SHR = Qs / (Qs + Ql)</div>
+        </div>
+      </div>
+    `;
+  }
+  function roomDataForPsychro() {
+    const mode = str("Mode", "cool");
+    const Tin = num("Tin", 24);
+    const RHin = num("RHin", 45);
+    const Tout = num("Tout", 36);
+    const RHout = num("RHout", 40);
+
+    const L = num("L", 0);
+    const Wm = num("W", 0);
+    const H = num("H", 0);
+    const V = L * Wm * H;
+
+    const mechMode = str("MechMode", "ach");
+    const ACHm = mechMode === "ach" ? num("ACHmech", 0) : 0;
+    const Qm = mechMode === "flow" ? num("Qmech", 0) : 0;
+    const Voa = (ACHm * V / 3600) + (Qm / 3600);
+
+    const qs = parseFloat($("sumQsVal")?.getAttribute("data-w") || "NaN");
+    const ql = parseFloat($("sumQlVal")?.getAttribute("data-w") || "NaN");
+
+    return { mode, Tin, RHin, Tout, RHout, Voa, qs, ql };
+  }
+
+  function bisect(fn, lo, hi, tol = 1e-4, maxIter = 60) {
+    let flo = fn(lo);
+    let fhi = fn(hi);
+
+    if (!Number.isFinite(flo) || !Number.isFinite(fhi)) return NaN;
+
+    if (flo * fhi > 0) {
+      let bestX = lo;
+      let bestAbs = Math.abs(flo);
+      for (let i = 1; i <= maxIter; i++) {
+        const x = lo + (i * (hi - lo)) / maxIter;
+        const fx = fn(x);
+        if (Math.abs(fx) < bestAbs) {
+          bestX = x;
+          bestAbs = Math.abs(fx);
+        }
+      }
+      return bestX;
+    }
+
+    for (let i = 0; i < maxIter; i++) {
+      const mid = (lo + hi) / 2;
+      const fm = fn(mid);
+      if (Math.abs(fm) < tol) return mid;
+
+      if (flo * fm <= 0) {
+        hi = mid;
+      } else {
+        lo = mid;
+        flo = fm;
+      }
+    }
+
+    return (lo + hi) / 2;
+  }
+
+  function calcPsychro() {
+    const out = $("psychroMix");
+    if (!out) return;
+
+    const R = roomDataForPsychro();
+
+    if (R.mode !== "cool") {
+      out.innerHTML = '<div class="warn">Psychrometric coil model is available in cooling mode only.</div>';
+      return;
+    }
+
+    if (!Number.isFinite(R.qs)) {
+      out.innerHTML = '<div class="warn">Run load calculation first (Qs/Ql required).</div>';
+      return;
+    }
+
+    const TsaTarget = num("PS_Tsa", 14);
+    const RHmode = str("PS_SA_RH_mode", "sat");
+    const RHsaIn = num("PS_RHsa", 95);
+    const SAin = parseFloat(str("PS_SA_manual", ""));
+    const press = num("PS_Pressurization", 0);
+    const targetMode = str("PS_Mode", "fixT");
+    const coilMode = str("PS_CoilMode", "off");
+
+    let BFinput = clamp(num("PS_BF", 0.1), 0, 0.5);
+    let ADPinput = num("PS_ADP", 12);
+    const LWT = parseFloat(str("PS_LWT", ""));
+
+    const win = wTRH(R.Tin, R.RHin);
+    const wout = wTRH(R.Tout, R.RHout);
+    const hin = hTw(R.Tin, win);
+    const hout = hTw(R.Tout, wout);
+
+    let Vsa;
+    if (Number.isFinite(SAin) && SAin > 0) {
+      Vsa = SAin / 3600;
+    } else {
+      const md = R.qs / (cp * 1000 * Math.max(0.1, (R.Tin - TsaTarget)));
+      Vsa = md / rho;
+    }
+
+    const Voa = Math.max(0, R.Voa);
+    const Vrec = Math.max(0, Vsa - Voa);
+
+    const mO = Voa * rho;
+    const mR = Vrec * rho;
+    const mS = Vsa * rho;
+
+    const wm = (mO * wout + mR * win) / Math.max(1e-9, mO + mR);
+    const hm = (mO * hout + mR * hin) / Math.max(1e-9, mO + mR);
+    const Tm = T_hw(hm, wm);
+    const RHmix = RH_Tw(Tm, wm);
+
+    let Tsa;
+    let wsa;
+    let RHs;
+    let hsa;
+    let ADP = NaN;
+    let BF = NaN;
+    let note = '<div class="muted">Coil model: Off</div>';
+
+    if (coilMode === "off") {
+      Tsa = TsaTarget;
+
+      if (targetMode === "fixT") {
+        if (RHmode === "sat") {
+          RHs = 100;
+          wsa = wTRH(Tsa, 100);
+        } else if (RHmode === "roomw") {
+          wsa = win;
+          RHs = RH_Tw(Tsa, wsa);
+        } else {
+          const r = clamp(RHsaIn, 5, 100);
+          RHs = r;
+          wsa = wTRH(Tsa, r);
+        }
+
+        hsa = hTw(Tsa, wsa);
+      } else {
+        if (!(Number.isFinite(SAin) && SAin > 0)) {
+          out.innerHTML = '<div class="warn">Fixed RHsa mode requires known SA airflow (m3/h).</div>';
+          return;
+        }
+
+        const r = clamp(RHsaIn, 5, 100);
+        Tsa = Tm - (R.qs / (mS * cp * 1000));
+        wsa = wTRH(Tsa, r);
+        RHs = r;
+        hsa = hTw(Tsa, wsa);
+      }
+    } else {
+      if (coilMode === "bf") {
+        BF = BFinput;
+
+        const fn = (Tadp) => {
+          const wadp = wTRH(Tadp, 100);
+          const hadp = hTw(Tadp, wadp);
+          const hc = hadp + BF * (hm - hadp);
+          const wc = wadp + BF * (wm - wadp);
+          const Tc = T_hw(hc, wc);
+          return Tc - TsaTarget;
+        };
+
+        ADP = bisect(fn, -5, Tm - 0.1, 1e-3, 80);
+      } else {
+        ADP = ADPinput;
+
+        const fn = (bf) => {
+          const wadp = wTRH(ADP, 100);
+          const hadp = hTw(ADP, wadp);
+          const hc = hadp + bf * (hm - hadp);
+          const wc = wadp + bf * (wm - wadp);
+          const Tc = T_hw(hc, wc);
+          return Tc - TsaTarget;
+        };
+
+        BF = clamp(bisect(fn, 0, 0.5, 1e-4, 80), 0, 0.5);
+      }
+
+      const wadp = wTRH(ADP, 100);
+      const hadp = hTw(ADP, wadp);
+      const hc = hadp + BF * (hm - hadp);
+      const wc = wadp + BF * (wm - wadp);
+      const Tc = T_hw(hc, wc);
+
+      Tsa = Tc;
+      wsa = wc;
+      hsa = hc;
+      RHs = RH_Tw(Tsa, wsa);
+
+      note = `<div class="muted">Coil model active: ADP=${ADP.toFixed(1)} degC, BF=${BF.toFixed(3)}</div>`;
+    }
+
+    const Qct = mS * Math.max(0, hm - hsa) * 1000;
+    const Qcs = mS * Math.max(0, Tm - Tsa) * cp * 1000;
+    const Qcl = Math.max(0, Qct - Qcs);
+
+    const VsaH = Vsa * 3600;
+    const VoaH = Voa * 3600;
+    const VrecH = Vrec * 3600;
+
+    const exhaust = Math.max(0, VoaH - press);
+    const ret = Math.max(0, VsaH - exhaust);
+
+    let lwtNote = "";
+    if (Number.isFinite(LWT) && !Number.isNaN(ADP)) {
+      if (ADP < LWT) {
+        lwtNote = `<div class="warn">Check: ADP (${ADP.toFixed(1)} degC) < LWT (${LWT.toFixed(1)} degC). Usually ADP ~ LWT + 1..3K.</div>`;
+      } else if (ADP < LWT + 1) {
+        lwtNote = '<div class="warn">Tight approach: ADP very close to LWT.</div>';
+      }
+    }
+
+    lastPsychro = { VsaH, Tm, Tsa, RHs, Qct, Qcs, Qcl, wm, hm, wsa, hsa };
+
+    out.innerHTML = `
+      <div class="grid cols-3">
+        <div class="kpi">
+          <div class="muted">Supply airflow (SA)</div>
+          <b>${VsaH.toFixed(0)} m3/h</b>
+          <div>OA fraction: ${((VoaH / Math.max(1, VsaH)) * 100).toFixed(1)}%</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Mixed air @ coil inlet</div>
+          <b>${Tm.toFixed(1)} degC</b>
+          <div>RH~${RHmix.toFixed(0)}% - w=${wm.toFixed(4)} kg/kg</div>
+          <div>h=${hm.toFixed(1)} kJ/kg</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Supply state (SA)</div>
+          <b>${Tsa.toFixed(1)} degC / ${RHs.toFixed(0)}% RH</b>
+          <div>w=${wsa.toFixed(4)} kg/kg</div>
+          <div>h=${hsa.toFixed(1)} kJ/kg</div>
+        </div>
+      </div>
+
+      <div class="grid cols-3" style="margin-top:10px">
+        <div class="kpi">
+          <div class="muted">Coil load</div>
+          <b>${fmtPower(Qct)}</b>
+          <div>Qs=${fmtPower(Qcs)} - Ql=${fmtPower(Qcl)}</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Return / Exhaust</div>
+          <b>Return ~ ${ret.toFixed(0)} m3/h</b>
+          <div>Exhaust ~ ${exhaust.toFixed(0)} m3/h</div>
+        </div>
+
+        <div class="kpi">
+          <div class="muted">Flow balance</div>
+          <b>${Math.abs((VoaH + VrecH) - VsaH) < 1e-6 ? "OK" : "Check"}</b>
+          <div>SA = OA + Recirc</div>
+        </div>
+      </div>
+      ${note}
+      ${lwtNote}
+    `;
+
+    upsertSpacePsychro();
+  }
+
+  function suggestTsa() {
+    const R = roomDataForPsychro();
+    window.__suggestNote = "";
+
+    if (R.mode !== "cool") return;
+
+    const SAin = parseFloat(str("PS_SA_manual", ""));
+    if (!(Number.isFinite(SAin) && SAin > 0)) {
+      window.__suggestNote = "Enter known SA airflow (m3/h) to use Suggest Tsa.";
+      return;
+    }
+
+    const win = wTRH(R.Tin, R.RHin);
+    const wout = wTRH(R.Tout, R.RHout);
+    const hin = hTw(R.Tin, win);
+    const hout = hTw(R.Tout, wout);
+
+    const Vsa = SAin / 3600;
+    const Voa = Math.max(0, R.Voa);
+    const Vrec = Math.max(0, Vsa - Voa);
+
+    const mO = Voa * rho;
+    const mR = Vrec * rho;
+    const mS = Vsa * rho;
+
+    const wm = (mO * wout + mR * win) / Math.max(1e-9, mO + mR);
+    const hm = (mO * hout + mR * hin) / Math.max(1e-9, mO + mR);
+    const Tm = T_hw(hm, wm);
+
+    const rawT = Tm - (R.qs / (mS * cp * 1000));
+    const suggested = Number.isFinite(rawT) ? rawT : (R.Tin - 10);
+    const clipped = clamp(suggested, 6, 22);
+
+    if (Math.abs(clipped - suggested) > 0.2) {
+      window.__suggestNote = `Suggested Tsa clipped to ${clipped.toFixed(1)} degC (raw ${suggested.toFixed(1)}).`;
+    }
+
+    if ($("PS_Tsa")) {
+      $("PS_Tsa").value = clipped.toFixed(1);
+    }
+  }
+
+  function syncPsychroUiState() {
+    const view = str("PS_ViewMode", "simple");
+    const wrap = $("psychroFormWrap");
+    if (wrap) {
+      wrap.classList.toggle("is-simple", view === "simple");
+    }
+
+    const m = str("PS_Mode", "fixT");
+    const rh = str("PS_SA_RH_mode", "sat");
+    const cm = str("PS_CoilMode", "off");
+    const sa = parseFloat(str("PS_SA_manual", ""));
+    const known = Number.isFinite(sa) && sa > 0;
+
+    if ($("PS_RHsa")) {
+      $("PS_RHsa").disabled = (rh !== "manual" && m !== "fixRH");
+    }
+    if ($("PS_BF")) {
+      $("PS_BF").disabled = (cm !== "bf");
+    }
+    if ($("PS_ADP")) {
+      $("PS_ADP").disabled = (cm !== "adp");
+    }
+
+    const hint = $("psychroInputHint");
+    if (hint) {
+      let msg = "Workflow: calculate loads, set supply mode, then recalculate psychrometrics.";
+
+      if (m === "fixRH" && !known) {
+        msg = "Fixed RHsa mode requires known SA airflow (m3/h).";
+      } else if (m === "fixT" && !known) {
+        msg = "SA airflow is optional in Fixed Tsa mode (estimated from Qs and Tsa).";
+      }
+
+      if (view === "simple") {
+        msg += " Simple mode hides ADP/BF advanced controls.";
+      }
+
+      if (cm === "bf") msg += " BF input -> ADP solved.";
+      else if (cm === "adp") msg += " ADP input -> BF solved.";
+
+      if (window.__suggestNote) {
+        msg += ` ${window.__suggestNote}`;
+      }
+
+      hint.textContent = msg;
+    }
+  }
+
+  function showLoadsPane() {
+    const loads = $("loadsPane");
+    const psych = $("psychroPane");
+    if (loads) loads.style.display = "grid";
+    if (psych) psych.style.display = "none";
+    $("tabLoads")?.classList.add("active");
+    $("tabPsychro")?.classList.remove("active");
+  }
+
+  function showPsychroPane() {
+    const loads = $("loadsPane");
+    const psych = $("psychroPane");
+    if (loads) loads.style.display = "none";
+    if (psych) psych.style.display = "block";
+    $("tabPsychro")?.classList.add("active");
+    $("tabLoads")?.classList.remove("active");
+
+    renderPsychroSummary();
+    syncPsychroUiState();
+    calcPsychro();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function bindTabs() {
+    $("tabLoads")?.addEventListener("click", showLoadsPane);
+    $("tabPsychro")?.addEventListener("click", showPsychroPane);
+    $("closePsychro")?.addEventListener("click", showLoadsPane);
+
+    $("openPsychroCta")?.addEventListener("click", showPsychroPane);
+    $("openPsychroFromResults")?.addEventListener("click", showPsychroPane);
+  }
+
+  function renderLiveChecks() {
+    const host = $("liveChecks");
+    if (!host) return;
+
+    const lines = [];
+
+    const mode = str("Mode", "cool");
+    const Tin = num("Tin", 24);
+    const Tout = num("Tout", 36);
+
+    const roofSum = num("RoofPctExt", 100) + num("RoofPctUnh", 0) + num("RoofPctHeated", 0);
+    const floorSum = num("FloorPctGround", 100) + num("FloorPctUnh", 0) + num("FloorPctHeated", 0);
+
+    if (roofSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά οροφής ξεπερνούν το 100%.":"Roof percentages exceed 100%.");
+    if (floorSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά δαπέδου ξεπερνούν το 100%.":"Floor percentages exceed 100%.");
+
+    const Aext = num("LwallExt", 0) * num("H", 0);
+    let Awin = 0;
+    document.querySelectorAll("#winTable tbody tr").forEach((tr) => {
+      Awin += parseFloat(tr.querySelector(".wg-area")?.value) || 0;
+    });
+
+    if (Awin > Aext && Aext > 0) lines.push(currentLang==="el"?"Η συνολική επιφάνεια υαλοστασίων είναι μεγαλύτερη από την εξωτερική τοιχοποιία.":"Window area is larger than external wall area.");
+
+    if (mode === "cool" && Tout <= Tin) lines.push(currentLang==="el"?"Ψύξη με Tout <= Tin. Έλεγξε τις εξωτερικές συνθήκες.":"Cooling mode with Tout <= Tin. Check outdoor input.");
+    if (mode === "heat" && Tin <= Tout) lines.push(currentLang==="el"?"Θέρμανση με Tin <= Tout. Έλεγξε τις εξωτερικές συνθήκες.":"Heating mode with Tin <= Tout. Check outdoor input.");
+
+    if (str("MechMode", "ach") === "flow" && num("Qmech", 0) <= 0) lines.push(currentLang==="el"?"Η μηχανική λειτουργία είναι m3/h αλλά η παροχή είναι μηδενική.":"Mechanical mode is m3/h but airflow is zero.");
+
+    if (lines.length === 0) {
+      host.innerHTML = currentLang==="el" ? '<div class="good">Τα δεδομένα φαίνονται συνεπή.</div>' : '<div class="good">Inputs look consistent.</div>';
+    } else {
+      host.innerHTML = `<div class="warn">${lines.map((x) => `- ${x}`).join("<br/>")}</div>`;
+    }
+  }
+
+  function initEvents() {
+    bindTabs();
+
+    $("Lang")?.addEventListener("change", () => {
+      currentLang = str("Lang", "el");
+      applyLanguage();
+      updateModeTheme();
+      calcLoad();
+    });
+
+    $("city")?.addEventListener("change", () => {
+      applyCity();
+      calcLoad();
+    });
+
+    $("Mode")?.addEventListener("change", () => {
+      applyModeDefaults();
+      applyCity();
+      updateModeTheme();
+      calcLoad();
+    });
+
+    $("Units")?.addEventListener("change", () => {
+      updateModeTheme();
+      calcLoad();
+    });
+
+    $("addWinGrp")?.addEventListener("click", () => addWindowRow());
+
+    $("addDev")?.addEventListener("click", () => {
+      const idx = parseInt(devSel?.value || "0", 10);
+      const d = devLibrary[idx] || devLibrary[0];
+      if (d) addDeviceRow(d);
+    });
+
+    $("addCustom")?.addEventListener("click", () => {
+      const W = num("CustomW", 0);
+      const duty = clamp(num("CustomDuty", 1), 0, 1);
+      const load = W * duty;
+      if (load > 0) {
+        addDeviceRow({ name: "Custom", W: load });
+      }
+    });
+
+    $("btnCalc")?.addEventListener("click", calcLoad);
+    $("recalcQuick")?.addEventListener("click", calcLoad);
+
+    $("addRoomBtn")?.addEventListener("click", addCurrentRoom);
+    $("clearRoomsBtn")?.addEventListener("click", () => { spaces = []; renderSpaces(); });
+    $("exportLoadPdfBtn")?.addEventListener("click", exportLoadsPdf);
+    $("loadRoomBtn")?.addEventListener("click", loadSelectedRoom);
+    $("exportPsychroPdfBtn")?.addEventListener("click", exportPsychroPdf);
+
+    $("PS_Recalc")?.addEventListener("click", () => {
+      syncPsychroUiState();
+      calcPsychro();
+    });
+
+    $("PS_Suggest_T")?.addEventListener("click", () => {
+      suggestTsa();
+      syncPsychroUiState();
+      calcPsychro();
+    });
+
+    const reactiveIds = INPUT_IDS;
+
+    reactiveIds.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      const fn = () => {
+        if (id === "H" && $("H_display")) {
+          $("H_display").value = $("H").value;
+        }
+        if (id.startsWith("PS_")) {
+          syncPsychroUiState();
+          if ($("psychroPane")?.style.display !== "none") {
+            calcPsychro();
+          }
+          return;
+        }
+
+        renderAssumptions();
+        renderLiveChecks();
+      };
+
+      el.addEventListener("input", fn);
+      el.addEventListener("change", fn);
+    });
+  }
+
+  function initData() {
+    devLibrary.forEach((d, i) => {
+      const op = document.createElement("option");
+      op.value = String(i);
+      op.textContent = `${d.name} (${d.W} W)`;
+      devSel?.appendChild(op);
+    });
+    if (devSel) devSel.selectedIndex = 0;
+
+    addWindowRow("S", 1.5, 0.7);
+    addWindowRow("W", 2.0, 1.0);
+    addWindowRow("E", 1.0, 1.0);
+    addWindowRow("N", 0.5, 1.0);
+
+    addDeviceRow({ name: "Desktop PC", W: 120 });
+  }
+
+  function initPsychroHelpText() {
+    const HELP = {
+      PS_ViewMode: "Simple: fewer controls. Expert: ADP/BF and LWT checks.",
+      PS_Mode: "Fixed Tsa is the simplest workflow.",
+      PS_Tsa: "Supply air dry-bulb temperature [degC].",
+      PS_SA_manual: "Known SA airflow [m3/h]. If empty, estimate from Qs.",
+      PS_SA_RH_mode: "How humidity is defined in fixed-T mode.",
+      PS_RHsa: "Used for manual RH mode or fixed-RH mode.",
+      PS_CoilMode: "Optional ADP/BF consistency model.",
+      PS_BF: "Bypass factor. Lower BF = stronger coil contact.",
+      PS_ADP: "Apparatus dew point [degC].",
+      PS_LWT: "Leaving water temperature [degC], for plausibility check."
+    };
+
+    Object.entries(HELP).forEach(([id, text]) => {
+      const el = $(id);
+      const host = el?.closest("div");
+      if (!el || !host) return;
+      const d = document.createElement("div");
+      d.className = "input-help";
+      d.textContent = text;
+      host.appendChild(d);
+    });
+  }
+
+  function bootstrap() {
+    try {
+      bindCustomSelect("UwallPreset", "UwallCustom");
+      bindCustomSelect("UwinPreset", "UwinCustom");
+      bindCustomSelect("UroofPreset", "UroofCustom");
+      bindCustomSelect("UfloorPreset", "UfloorCustom");
+
+      bindPercentGroup(["RoofPctExt", "RoofPctUnh", "RoofPctHeated"], "roofPctHint", "Roof");
+      bindPercentGroup(["FloorPctGround", "FloorPctUnh", "FloorPctHeated"], "floorPctHint", "Floor");
+
+      bindFloorHint();
+      initEvents();
+      initData();
+      initPsychroHelpText();
+
+      currentLang = str("Lang", "el");
+      applyLanguage();
+
+      if ($("H") && $("H_display")) {
+        $("H_display").value = $("H").value;
+      }
+
+      applyModeDefaults();
+      applyCity();
+      updateModeTheme();
+      calcLoad();
+      syncPsychroUiState();
+      renderSpaces();
+      showLoadsPane();
+    } catch (err) {
+      console.error("Initialization error:", err);
+      const host = $("result");
+      if (host) {
+        host.innerHTML = '<div class="warn">Initialization error. Open browser console for details.</div>';
+      }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrap);
+  } else {
+    bootstrap();
+  }
+})();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+

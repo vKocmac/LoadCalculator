@@ -1,0 +1,331 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HVAC Load Calculator - NextGen Expert v2</title>
+  <style>
+    :root{--bg:#07101a;--bg2:#0e1d2d;--panel:#112335;--panel2:#0c1a29;--ink:#ecf6ff;--muted:#9db8cd;--line:#274257;--acc:#ff8a00;--acc2:#2dd4bf;--ok:#34d399;--warn:#fbbf24}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Segoe UI",Aptos,Trebuchet MS,sans-serif;color:var(--ink);background:radial-gradient(1000px 700px at 92% -10%,#1f3b58 0%,transparent 52%),radial-gradient(900px 700px at -8% 20%,#1a2b3e 0%,transparent 45%),linear-gradient(160deg,var(--bg),var(--bg2));padding:18px}
+    .app{max-width:1320px;margin:0 auto}
+    .hero{border:1px solid var(--line);border-radius:18px;padding:16px;background:linear-gradient(140deg,rgba(255,138,0,.13),rgba(45,212,191,.09));margin-bottom:14px}
+    .hero h1{margin:0;font-size:1.5rem}.hero p{margin:8px 0 0;color:#d6e8f7}
+    .hero-grid{display:grid;gap:12px;align-items:start}@media(min-width:980px){.hero-grid{grid-template-columns:1.7fr 1fr}}
+    .quick{border:1px solid #35516a;border-radius:12px;background:#0e1d2b;padding:10px;font-size:.9rem}.quick b{color:#ffd59a}
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tab-btn{border:1px solid #35516a;background:#0e1d2b;color:var(--ink);border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:700}
+    .tab-btn.active{background:linear-gradient(90deg,var(--acc),#f97316);color:#111827;border-color:transparent}
+    .workspace{display:grid;gap:12px}@media(min-width:1120px){.workspace{grid-template-columns:330px 1fr}}
+    .side{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#0f1f2f,#0b1826);padding:12px;height:max-content;position:sticky;top:14px}
+    .side h3{margin:0 0 8px}.step{border:1px solid #2e4b62;border-radius:10px;background:#0a1723;padding:9px;margin:7px 0}.step b{display:block;color:#ffd59a;font-size:.82rem}.step span{display:block;color:#b9cfdf;font-size:.82rem;margin-top:3px}
+    .side summary{cursor:pointer;color:#ffe1ad;font-weight:700}.side ul{margin:8px 0 0;padding-left:18px;color:#c6dbeb}
+    .main{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#122436,#0f1d2c);padding:14px}
+    .section{border:1px solid #284359;border-radius:13px;background:#0c1927;padding:12px;margin-bottom:11px}
+    .section h2{margin:0 0 8px;font-size:1rem;color:#d7e9f8}
+    .grid{display:grid;gap:10px}@media(min-width:820px){.cols-2{grid-template-columns:repeat(2,1fr)}.cols-3{grid-template-columns:repeat(3,1fr)}}
+    label{display:block;color:#c4d8ea;font-size:.88rem;font-weight:700;margin-bottom:5px}.desc{margin-top:4px;color:#94b0c4;font-size:.78rem}
+    input,select,button{width:100%;padding:9px 11px;border-radius:11px;border:1px solid #34556f;background:#0a1622;color:var(--ink);outline:none}
+    input:focus,select:focus{border-color:var(--acc2);box-shadow:0 0 0 3px rgba(45,212,191,.2)}button{cursor:pointer;font-weight:700}
+    .primary{border:0;background:linear-gradient(90deg,var(--acc),#f97316);color:#111827}.ghost{background:transparent}
+    .hintline{margin-top:7px;color:#a8c1d5;font-size:.8rem}.ok{color:var(--ok)}.warnTxt{color:var(--warn)}
+    .table{width:100%;border-collapse:collapse}.table th,.table td{border-bottom:1px dashed #284359;padding:6px 8px;text-align:left}
+    .kpi{border:1px dashed #36556d;border-radius:12px;background:#0a1724;padding:11px;display:grid;gap:4px}.kpi b{font-size:1.28rem;color:#9be8ff}
+    .rowline{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #284359;padding:6px 0}.muted{color:var(--muted)}
+    .warn{border-left:3px solid var(--warn);background:#2a2418;color:#ffd980;padding:8px 10px;border-radius:10px;font-size:.84rem}
+    canvas{max-width:100%;background:#091522;border:1px solid var(--line);border-radius:12px}
+    #psychroPane .guide{border:1px solid #2a465c;border-radius:12px;background:#0b1826;padding:12px;margin-bottom:10px}
+    .wizard{display:grid;gap:8px;margin-bottom:8px}@media(min-width:900px){.wizard{grid-template-columns:repeat(4,1fr)}}
+    .wstep{border:1px solid #2d4a60;border-radius:10px;padding:8px;background:#0a1622}.wstep b{display:block;color:#ffd59a;font-size:.82rem}.wstep span{display:block;color:#bdd2e3;font-size:.8rem}
+    .terms{display:grid;gap:8px;margin-top:8px}@media(min-width:900px){.terms{grid-template-columns:repeat(2,1fr)}}
+    .term{border:1px solid #29445b;border-radius:10px;padding:8px;background:#0a1724}.term b{display:block;color:#ffd59a}.term p{margin:3px 0 0;color:#c8dcee;font-size:.83rem}
+    .input-help{margin-top:4px;color:#94b0c4;font-size:.78rem}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <h1>HVAC Load Calculator - NextGen Expert v2</h1>
+        <p>Rebuilt layout for cleaner workflow, expanded presets, safer input handling, and much clearer psychrometrics guidance.</p>
+      </div>
+      <div class="quick">
+        <b>Quick Workflow</b>
+        <div>1) Enter room + weather</div>
+        <div>2) Select envelope presets</div>
+        <div>3) Calculate load</div>
+        <div>4) Open psychrometrics and validate SA/coil</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabsBar">
+    <button id="tabLoads" class="tab-btn active">Load Workspace</button>
+    <button id="tabPsychro" class="tab-btn">Psychrometrics Workspace</button>
+  </div>
+
+  <div id="loadsPane" class="workspace">
+    <aside class="side">
+      <h3>Engineering Checklist</h3>
+      <div class="step"><b>Step A</b><span>Set mode, units, geometry.</span></div>
+      <div class="step"><b>Step B</b><span>Set indoor/outdoor design states.</span></div>
+      <div class="step"><b>Step C</b><span>Select envelope U-values and percentages.</span></div>
+      <div class="step"><b>Step D</b><span>Set ventilation and internal gains.</span></div>
+      <div class="step"><b>Step E</b><span>Calculate and inspect sensible/latent split.</span></div>
+      <details>
+        <summary>Model Scope</summary>
+        <ul>
+          <li>Transmission: walls, windows, roof, floor.</li>
+          <li>Solar gains through windows (cooling mode).</li>
+          <li>Infiltration + ventilation loads.</li>
+          <li>People, lighting, and equipment gains.</li>
+        </ul>
+      </details>
+    </aside>
+
+    <main class="main">
+      <div class="section">
+        <h2>Operation</h2>
+        <div class="grid cols-3">
+          <div><label>Mode</label><select id="Mode"><option value="cool" selected>Cooling</option><option value="heat">Heating</option></select><div class="desc">Heating mode reports losses only.</div></div>
+          <div><label>Units</label><select id="Units"><option value="W" selected>W</option><option value="kW">kW</option></select></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Geometry</h2>
+        <div class="grid cols-3">
+          <div><label>Length (m)</label><input type="number" id="L" step="0.1" value="6"></div>
+          <div><label>Width (m)</label><input type="number" id="W" step="0.1" value="4.5"></div>
+          <div><label>Height (m)</label><input type="number" id="H" step="0.1" value="2.8"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Design Conditions</h2>
+        <div class="grid cols-3">
+          <div><label>Indoor Temp (degC)</label><input id="Tin" type="number" step="0.1" value="24"></div>
+          <div><label>Indoor RH (%)</label><input id="RHin" type="number" step="1" value="45"></div>
+          <div><label>City Preset</label><select id="city"><option value="Athens|36|40">Athens (36 C / 40%)</option><option value="Thessaloniki|35|50">Thessaloniki (35 C / 50%)</option><option value="Patra|34|55">Patra (34 C / 55%)</option><option value="Heraklion|33|60">Heraklion (33 C / 60%)</option><option value="Custom">Custom</option></select></div>
+        </div>
+        <div class="grid cols-2" style="margin-top:8px">
+          <div><label>Outdoor Temp (degC)</label><input id="Tout" type="number" step="0.1" value="36"></div>
+          <div><label>Outdoor RH (%)</label><input id="RHout" type="number" step="1" value="40"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Walls</h2>
+        <div class="grid cols-3">
+          <div><label>Wall U-value Preset</label><select id="UwallPreset"><option value="1.80">Old masonry (U=1.80)</option><option value="1.20">Single brick + plaster (U=1.20)</option><option value="1.00">Double wall uninsulated (U=1.00)</option><option value="0.70">Insulated 5 cm EPS (U=0.70)</option><option value="0.45">Insulated 8 cm EPS (U=0.45)</option><option value="0.35">Insulated 10 cm EPS (U=0.35)</option><option value="0.30">Insulated 12 cm EPS (U=0.30)</option><option value="0.25">High insulation 15 cm EPS (U=0.25)</option><option value="custom">Custom</option></select></div>
+          <div><label>Wall U custom</label><input id="UwallCustom" type="number" step="0.01" value="0.70" disabled></div>
+          <div><label>External wall length (m)</label><input id="LwallExt" type="number" step="0.1" value="8"></div>
+        </div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>Wall length to unconditioned zone (m)</label><input id="LwallUnh" type="number" step="0.1" value="0"></div>
+          <div><label>Adjacent zone temp (degC)</label><input id="Tadj" type="number" step="0.5" value="30"></div>
+          <div><label>Height mirror</label><input id="H_display" type="number" value="2.8" disabled></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Windows</h2>
+        <div class="grid cols-3">
+          <div><label>Window U-value Preset</label><select id="UwinPreset"><option value="5.7">Single clear (U=5.7)</option><option value="2.8" selected>Double clear (U=2.8)</option><option value="1.6">Double low-e (U=1.6)</option><option value="1.3">Double low-e + Argon (U=1.3)</option><option value="1.0">Triple low-e (U=1.0)</option><option value="0.9">Triple low-e + Argon (U=0.9)</option><option value="0.8">High-performance triple (U=0.8)</option><option value="custom">Custom</option></select></div>
+          <div><label>Window U custom</label><input id="UwinCustom" type="number" step="0.1" value="2.8" disabled></div>
+          <div><label>SHGC Preset</label><select id="SHGCpreset"><option value="0.86">Single clear SHGC~0.86</option><option value="0.70" selected>Double clear SHGC~0.70</option><option value="0.55">Double low-e SHGC~0.55</option><option value="0.40">Triple low-e SHGC~0.40</option></select></div>
+        </div>
+        <div style="margin-top:8px"><button class="ghost" id="addWinGrp">+ Add window group</button></div>
+        <table class="table" id="winTable" style="margin-top:8px"><thead><tr><th>Orientation</th><th>Area m2</th><th>Shading factor</th><th></th></tr></thead><tbody></tbody></table>
+        <div class="desc">Shading: 1.0 none, 0.7 medium, 0.4 strong. Orientations: N NE E SE S SW W NW.</div>
+      </div>
+      <div class="section">
+        <h2>Roof & Floor</h2>
+        <div class="grid cols-3">
+          <div><label>Roof U-value Preset</label><select id="UroofPreset"><option value="1.00">Uninsulated slab (1.00)</option><option value="0.50">XPS 5 cm (0.50)</option><option value="0.35" selected>XPS 8 cm (0.35)</option><option value="0.25">XPS 12 cm (0.25)</option><option value="0.20">XPS 15 cm (0.20)</option><option value="0.18">XPS 20 cm (0.18)</option><option value="0.15">XPS 25 cm (0.15)</option><option value="custom">Custom</option></select></div>
+          <div><label>Roof U custom</label><input id="UroofCustom" type="number" step="0.01" value="0.35" disabled></div>
+          <div><label>% roof to outdoor</label><input id="RoofPctExt" type="number" step="1" value="100"></div>
+        </div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>% roof to unconditioned zone</label><input id="RoofPctUnh" type="number" step="1" value="0"></div>
+          <div><label>Unconditioned zone temp above (degC)</label><input id="Tattic" type="number" step="0.5" value="35"></div>
+          <div><label>% roof to conditioned zone</label><input id="RoofPctHeated" type="number" step="1" value="0"></div>
+        </div>
+        <div id="roofPctHint" class="hintline"></div>
+
+        <div class="grid cols-3" style="margin-top:10px">
+          <div><label>Floor U-value Preset</label><select id="UfloorPreset"><option value="p|1.50">Pilotis floor uninsulated (1.50)</option><option value="p|0.90">Pilotis floor light insulation 3 cm (0.90)</option><option value="p|0.50">Pilotis floor insulation 5 cm (0.50)</option><option value="p|0.35">Pilotis floor insulation 8 cm (0.35)</option><option value="p|0.25">Pilotis floor insulation 12 cm (0.25)</option><option value="p|0.20">Pilotis floor insulation 15 cm (0.20)</option><option value="g|1.20">Ground floor uninsulated (1.20)</option><option value="g|0.80">Ground floor light insulation 3 cm (0.80)</option><option value="g|0.50" selected>Ground floor insulation 5 cm (0.50)</option><option value="g|0.35">Ground floor insulation 8 cm (0.35)</option><option value="g|0.25">Ground floor insulation 12 cm (0.25)</option><option value="g|0.20">Ground floor insulation 15 cm (0.20)</option><option value="custom">Custom</option></select></div>
+          <div><label>Floor U custom</label><input id="UfloorCustom" type="number" step="0.01" value="0.50" disabled></div>
+          <div><label>% floor to ground/pilotis</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
+        </div>
+        <div id="floorPresetHint" class="hintline"></div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>% floor to unconditioned zone</label><input id="FloorPctUnh" type="number" step="1" value="0"></div>
+          <div><label>% floor to conditioned zone</label><input id="FloorPctHeated" type="number" step="1" value="0"></div>
+          <div><label>Ground temp (degC)</label><input id="Tground" type="number" step="0.5" value="15"></div>
+        </div>
+        <div id="floorPctHint" class="hintline"></div>
+      </div>
+
+      <div class="section">
+        <h2>Ventilation</h2>
+        <div class="grid cols-3">
+          <div><label>Infiltration ACH</label><select id="ACHinf"><option value="0.3">Tight envelope (~0.3 ACH)</option><option value="0.7" selected>Moderate (~0.7 ACH)</option><option value="1.2">Leaky/old (~1.2 ACH)</option></select></div>
+          <div><label>Natural ventilation ACH</label><select id="ACHnat"><option value="0">Windows closed</option><option value="1">Tilt-open (~1 ACH)</option><option value="3">Open windows (~3 ACH)</option></select></div>
+        </div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label>Mechanical ventilation mode</label><select id="MechMode"><option value="ach">Use ACH</option><option value="flow">Use m3/h</option></select></div>
+          <div><label>Mechanical ACH</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
+          <div><label>Mechanical airflow (m3/h)</label><input id="Qmech" type="number" step="10" value="0"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Internal Gains</h2>
+        <div class="grid cols-3">
+          <div><label>Number of occupants</label><input id="nPeople" type="number" step="1" value="2"></div>
+          <div><label>Occupancy activity</label><select id="PeopleActivity"><option value="75|55">Seated (S=75 W, L=55 W)</option><option value="100|75" selected>Light activity (100/75)</option><option value="130|95">Moderate activity (130/95)</option></select></div>
+          <div><label>Lighting density (W/m2)</label><input id="LightingWm2" type="number" step="1" value="8"></div>
+        </div>
+
+        <div class="section" style="margin-top:10px">
+          <h2>Equipment</h2>
+          <table class="table" id="devTable"><thead><tr><th>Device</th><th>Power (W)</th><th>Duty factor</th><th></th></tr></thead><tbody></tbody></table>
+          <div class="grid cols-2" style="margin-top:8px"><div><select id="devLib"></select></div><div><button id="addDev" class="ghost">+ Add selected device</button></div></div>
+          <div class="grid cols-3" style="margin-top:8px"><div><label>Custom power (W)</label><input id="CustomW" type="number" step="10" value="0"></div><div><label>Custom duty (0-1)</label><input id="CustomDuty" type="number" step="0.05" value="1"></div><div><label>Action</label><button id="addCustom" class="ghost">Add custom load</button></div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <button id="btnCalc" class="primary">Calculate Load</button>
+        <div id="result" style="margin-top:10px"></div>
+        <canvas id="pie" width="760" height="420" style="margin-top:10px"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <div id="psychroPane" class="main" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><h2 style="margin:0">Psychrometrics Workspace</h2><button id="closePsychro" class="ghost" style="width:auto;padding:8px 12px">Back to Load Workspace</button></div>
+    <div class="muted" style="margin-bottom:10px">Uses current load inputs to estimate mixed air, supply state, and coil sensible/latent split.</div>
+    <div id="psychroSummary" class="section"></div>
+
+    <div class="guide">
+      <h4>Guided Psychrometrics Flow</h4>
+      <div class="wizard">
+        <div class="wstep"><b>Step 1</b><span>Run load calculation first (Qs/Ql needed).</span></div>
+        <div class="wstep"><b>Step 2</b><span>Set supply target mode and Tsa/RH strategy.</span></div>
+        <div class="wstep"><b>Step 3</b><span>Enter SA airflow if known.</span></div>
+        <div class="wstep"><b>Step 4</b><span>Recalculate and validate coil results.</span></div>
+      </div>
+      <div id="psychroInputHint" class="hintline"></div>
+      <details style="margin-top:8px"><summary style="cursor:pointer;color:#ffd59a;font-weight:700">Acronyms & Key Terms</summary>
+        <div class="terms">
+          <div class="term"><b>RA</b><p>Return air from the room.</p></div><div class="term"><b>OA</b><p>Outdoor fresh air.</p></div>
+          <div class="term"><b>SA</b><p>Supply air to room.</p></div><div class="term"><b>Tsa</b><p>Supply air dry-bulb temperature.</p></div>
+          <div class="term"><b>w</b><p>Humidity ratio (kg moisture per kg dry air).</p></div><div class="term"><b>h</b><p>Moist-air enthalpy (kJ/kg).</p></div>
+          <div class="term"><b>Qs / Ql</b><p>Sensible / latent load components.</p></div><div class="term"><b>SHR</b><p>Qs/(Qs+Ql).</p></div>
+          <div class="term"><b>ADP</b><p>Coil apparatus dew point.</p></div><div class="term"><b>BF</b><p>Bypass factor.</p></div>
+        </div>
+      </details>
+    </div>
+
+
+    <div class="section">
+      <h2>What To Fill And Why (Quick Map)</h2>
+      <table class="table">
+        <thead><tr><th>Field</th><th>Use it when...</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td><b>PS_Mode = Fixed Tsa</b></td><td>You know target supply temperature.</td><td>Fastest setup for most comfort systems.</td></tr>
+          <tr><td><b>PS_Mode = Fixed RHsa</b></td><td>You need specific SA humidity control.</td><td>Requires known SA airflow to solve correctly.</td></tr>
+          <tr><td><b>PS_Tsa</b></td><td>Always in fixed-T mode.</td><td>Drives sensible capacity via dT(room-supply).</td></tr>
+          <tr><td><b>PS_SA_manual</b></td><td>You already sized fan/airflow.</td><td>Locks airside mass flow and makes results deterministic.</td></tr>
+          <tr><td><b>PS_SA_RH_mode</b></td><td>In fixed-T mode.</td><td>Chooses how supply moisture state is defined.</td></tr>
+          <tr><td><b>PS_CoilMode + BF/ADP</b></td><td>You want coil realism check.</td><td>Validates if coil leaving state is physically consistent.</td></tr>
+          <tr><td><b>PS_LWT</b></td><td>Chilled-water coil projects.</td><td>Flags unrealistic ADP vs water temperature approach.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Supply Target & Coil Inputs</h2>
+      <div class="grid cols-3">
+        <div><label>Supply target mode</label><select id="PS_Mode"><option value="fixT" selected>Fixed Tsa</option><option value="fixRH">Fixed RHsa% (known SA required)</option></select></div>
+        <div><label>Supply temp Tsa (degC)</label><input id="PS_Tsa" type="number" step="0.1" value="14"></div>
+        <div><label>Supply humidity mode</label><select id="PS_SA_RH_mode"><option value="sat" selected>Saturated at Tsa (100%)</option><option value="roomw">Same humidity ratio as room</option><option value="manual">Manual RHsa%</option></select></div>
+      </div>
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><label>Manual RHsa (%)</label><input id="PS_RHsa" type="number" step="1" value="95"></div>
+        <div><label>Known SA airflow (m3/h)</label><input id="PS_SA_manual" type="number" step="10" value=""></div>
+        <div><label>Pressurization offset (m3/h)</label><input id="PS_Pressurization" type="number" step="10" value="0"></div>
+      </div>
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><label>Coil model mode</label><select id="PS_CoilMode"><option value="off" selected>Off</option><option value="bf">Given BF -> solve ADP</option><option value="adp">Given ADP -> solve BF</option></select></div>
+        <div><label>Bypass Factor BF (0-0.5)</label><input id="PS_BF" type="number" step="0.01" value="0.10"></div>
+        <div><label>Apparatus Dew Point ADP (degC)</label><input id="PS_ADP" type="number" step="0.1" value="12.0"></div>
+      </div>
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><label>Leaving Water Temp LWT (degC)</label><input id="PS_LWT" type="number" step="0.1" value=""></div>
+        <div><button id="PS_Suggest_T" class="ghost">Suggest Tsa from Qs & SA</button></div>
+        <div><button id="PS_Recalc" class="primary">Recalculate Mix & Coil</button></div>
+      </div>
+    </div>
+
+    <div id="psychroMix" class="section"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+const run=()=>{const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rho=1.2,cp=1.006,Patm=101.325;
+const num=(id,d=0)=>{const v=parseFloat($(id)?.value);return isNaN(v)?d:v},str=(id,d='')=>$(id)?$(id).value:d;
+const esat=T=>0.61078*Math.exp((17.27*T)/(T+237.3)),wTRH=(T,RH)=>{const Pv=(RH/100)*esat(T);return 0.62198*Pv/(Patm-Pv)},hTw=(T,w)=>1.006*T+w*(2501+1.86*T),T_hw=(h,w)=>(h-2501*w)/(1.006+1.86*w),RH_Tw=(T,w)=>{const Pv=(w*Patm)/(0.62198+w),Ps=esat(T);return clamp(100*Pv/Ps,0,100)};
+const bindCustom=(p,c)=>{const ps=$(p),cs=$(c);if(!ps||!cs)return;const f=()=>cs.disabled=ps.value!=='custom';ps.addEventListener('change',f);f()};
+const bindPct=(ids,hid,label)=>{const els=ids.map(i=>$(i)).filter(Boolean),h=$(hid);if(els.length!==ids.length)return;const s=e=>{const v=clamp(parseFloat(e.value)||0,0,100);e.value=String(Math.round(v*10)/10);return v};const upd=()=>{const sum=els.reduce((a,e)=>a+(parseFloat(e.value)||0),0),rem=Math.max(0,100-sum);if(h)h.innerHTML=`${label}: total ${sum.toFixed(1)}% - remaining ${rem.toFixed(1)}% <span class="${sum<=100.001?'ok':'warnTxt'}">(${sum<=100.001?'OK':'auto-limited'})</span>`};const on=e=>{s(e);const oth=els.filter(x=>x!==e).reduce((a,x)=>a+s(x),0),mx=Math.max(0,100-oth),cv=parseFloat(e.value)||0;if(cv>mx)e.value=String(Math.round(mx*10)/10);upd()};els.forEach(e=>{e.addEventListener('input',()=>on(e));e.addEventListener('change',()=>on(e))});upd()};
+const bindFloorHint=()=>{const p=$('UfloorPreset'),c=$('UfloorCustom'),h=$('floorPresetHint');if(!p||!h)return;const f=()=>{const v=String(p.value||'g|0.50'),b=v.startsWith('p|')?'pilotis':(v==='custom'?'custom':'ground');h.textContent=b==='pilotis'?'Floor boundary: pilotis (uses outdoor dT in cooling/heating).':b==='ground'?'Floor boundary: ground (cooling floor gain ignored, heating losses counted).':`Custom floor U active (${c?.value||''}). Interpreted as ground unless preset uses p|.`};p.addEventListener('change',f);c?.addEventListener('input',f);f()};
+const cityData={Athens:{cool:{T:36,RH:40},heat:{T:2,RH:70},ground:{cool:15,heat:12},attic:{cool:35,heat:8},adj:{cool:30,heat:12}},Thessaloniki:{cool:{T:35,RH:50},heat:{T:0,RH:75},ground:{cool:14,heat:10},attic:{cool:34,heat:6},adj:{cool:28,heat:10}},Patra:{cool:{T:34,RH:55},heat:{T:3,RH:70},ground:{cool:15,heat:12},attic:{cool:34,heat:8},adj:{cool:29,heat:12}},Heraklion:{cool:{T:33,RH:60},heat:{T:7,RH:65},ground:{cool:17,heat:14},attic:{cool:35,heat:10},adj:{cool:30,heat:14}}};
+const applyCity=()=>{const m=str('Mode','cool'),cv=str('city','Custom');if(cv==='Custom')return;const cd=cityData[cv.split('|')[0]];if(!cd)return;const e=cd[m==='cool'?'cool':'heat'];$('Tout').value=e.T;$('RHout').value=e.RH;$('Tadj').value=cd.adj[m==='cool'?'cool':'heat'];$('Tground').value=cd.ground[m==='cool'?'cool':'heat'];$('Tattic').value=cd.attic[m==='cool'?'cool':'heat']};
+const setpoints=()=>{if(str('Mode','cool')==='heat'){$('Tin').value='22';$('RHin').value='40'}else{$('Tin').value='24';$('RHin').value='45'}};
+$('city')?.addEventListener('change',applyCity);$('Mode')?.addEventListener('change',()=>{setpoints();applyCity();calc()});
+const winTb=document.querySelector('#winTable tbody'),orient=['N','NE','E','SE','S','SW','W','NW'];
+const addWin=(o='W',a=3,s=1)=>{const tr=document.createElement('tr');tr.innerHTML=`<td><select class="wg-orient">${orient.map(x=>`<option value="${x}" ${x===o?'selected':''}>${x}</option>`).join('')}</select></td><td><input class="wg-area" type="number" step="0.1" value="${a}"></td><td><input class="wg-shade" type="number" step="0.1" value="${s}"></td><td><button class="ghost wg-del">x</button></td>`;tr.querySelector('.wg-del').addEventListener('click',()=>tr.remove());winTb.appendChild(tr)};
+$('addWinGrp')?.addEventListener('click',()=>addWin());addWin('S',1.5,0.7);addWin('W',2,1);addWin('E',1,1);addWin('N',0.5,1);
+const devLib=[{name:'Desktop PC',W:120},{name:'Monitor',W:30},{name:'TV LED 55"',W:120},{name:'Domestic refrigerator',W:60},{name:'Microwave oven',W:1200},{name:'Laser printer',W:350},{name:'Chargers/small devices',W:50},{name:'Motor load (eta=0.83)',W:1200}],devSel=$('devLib'),devTb=document.querySelector('#devTable tbody');
+devLib.forEach((d,i)=>{const op=document.createElement('option');op.value=i;op.textContent=`${d.name} (${d.W} W)`;devSel?.appendChild(op)});if(devSel)devSel.selectedIndex=0;
+const addDev=d=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${d.name}</td><td><input class="dv-W" type="number" step="10" value="${d.W}"></td><td><input class="dv-duty" type="number" step="0.05" value="1"></td><td><button class="ghost dv-del">x</button></td>`;tr.querySelector('.dv-del').addEventListener('click',()=>tr.remove());devTb.appendChild(tr)};
+$('addDev')?.addEventListener('click',()=>{const d=devLib[parseInt(devSel?.value)||0];if(d)addDev(d)});$('addCustom')?.addEventListener('click',()=>{const W=num('CustomW',0)*clamp(num('CustomDuty',1),0,1);if(W>0)addDev({name:'Custom',W})});
+const drawPie=(id,sens,lat)=>{const c=$(id);if(!c)return;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);const data={...sens,...lat},tot=Object.values(data).reduce((a,b)=>a+b,0)||1,keys=Object.keys(data);let st=0;const cx=180,cy=210,r=140;keys.forEach((k,i)=>{const v=data[k],a=(v/tot)*Math.PI*2;x.beginPath();x.moveTo(cx,cy);x.arc(cx,cy,r,st,st+a);x.closePath();x.fillStyle=`hsl(${Math.floor((i/Math.max(1,keys.length))*300)} 62% 52% / 0.92)`;x.fill();st+=a});x.font='12px Segoe UI';x.fillStyle='#eaf4ff';let y=20;const xl=360;keys.forEach((k,i)=>{const v=data[k];if(v<1)return;const p=(v/tot*100).toFixed(1),h=Math.floor((i/Math.max(1,keys.length))*300);x.fillStyle=`hsl(${h} 62% 52% / 0.92)`;x.fillRect(xl,y-10,14,14);x.fillStyle='#eaf4ff';x.fillText(`${k} - ${p}%`,xl+20,y);y+=18})};
+function calc(){const L=num('L',0),Wm=num('W',0),H=num('H',0),V=L*Wm*H,mode=str('Mode','cool'),toU=(x)=>str('Units','W')==='kW'?`${(x/1000).toFixed(2)} kW`:`${x.toFixed(0)} W`;const Tin=num('Tin',24),RHin=num('RHin',45),Tout=num('Tout',36),RHout=num('RHout',40),dTbase=Math.max(0,mode==='cool'?Tout-Tin:Tin-Tout);const winU=str('UwinPreset')==='custom'?num('UwinCustom',2.8):parseFloat(str('UwinPreset')),SHGC=num('SHGCpreset',0.7);const Uwall=str('UwallPreset')==='custom'?num('UwallCustom',0.7):parseFloat(str('UwallPreset')),Lext=num('LwallExt',0),Lunh=num('LwallUnh',0),Tadj=num('Tadj',mode==='cool'?30:12),Aext=Lext*H,Aunh=Lunh*H;let Awin=0,Qwinc=0,Qwins=0;const om={N:120,NE:220,E:350,SE:380,S:400,SW:450,W:500,NW:220};document.querySelectorAll('#winTable tbody tr').forEach(tr=>{const o=tr.querySelector('.wg-orient').value,a=parseFloat(tr.querySelector('.wg-area').value)||0,sh=parseFloat(tr.querySelector('.wg-shade').value)||1;Awin+=a;Qwinc+=a*winU*dTbase;if(mode==='cool')Qwins+=a*SHGC*(om[o]||350)*clamp(sh,0,1)});const AextN=Math.max(0,Aext-Awin),QwallExt=AextN*Uwall*dTbase,QwallUnh=Aunh*Uwall*Math.max(0,mode==='cool'?Tadj-Tin:Tin-Tadj);const Aroof=L*Wm,Afloor=L*Wm,Uroof=str('UroofPreset')==='custom'?num('UroofCustom',0.35):parseFloat(str('UroofPreset'));const uf=str('UfloorPreset','g|0.50');let Ufloor=0.5,fb='ground';if(uf==='custom'){Ufloor=num('UfloorCustom',0.5)}else if(String(uf).includes('|')){const [b,u]=String(uf).split('|');Ufloor=parseFloat(u);if(!isFinite(Ufloor))Ufloor=0.5;fb=(String(b||'g').trim().toLowerCase()==='p')?'pilotis':'ground'}else{Ufloor=parseFloat(uf);if(!isFinite(Ufloor))Ufloor=0.5}
+let RpE=clamp(num('RoofPctExt',100)/100,0,1),RpU=clamp(num('RoofPctUnh',0)/100,0,1),RpH=clamp(num('RoofPctHeated',0)/100,0,1),FpG=clamp(num('FloorPctGround',100)/100,0,1),FpU=clamp(num('FloorPctUnh',0)/100,0,1),FpH=clamp(num('FloorPctHeated',0)/100,0,1);const rs=RpE+RpU+RpH;if(rs>1){RpE/=rs;RpU/=rs;RpH/=rs}const fs=FpG+FpU+FpH;if(fs>1){FpG/=fs;FpU/=fs;FpH/=fs}
+const Tattic=num('Tattic',mode==='cool'?35:8),Tground=num('Tground',mode==='cool'?15:12),QroofExt=(Aroof*RpE)*Uroof*dTbase,QroofUnh=(Aroof*RpU)*Uroof*Math.max(0,mode==='cool'?Tattic-Tin:Tin-Tattic),dTfloorG=(fb==='pilotis')?dTbase:(mode==='cool'?0:Math.max(0,Tin-Tground)),QfloorG=(Afloor*FpG)*Ufloor*dTfloorG,QfloorU=(Afloor*FpU)*Ufloor*Math.max(0,mode==='cool'?Tadj-Tin:Tin-Tadj);
+const ACHinf=num('ACHinf',0),ACHnat=num('ACHnat',0),MechMode=str('MechMode','ach');let ACHmech=0,Qmech=num('Qmech',0)/3600;if(MechMode==='ach')ACHmech=num('ACHmech',0);const Vdot=((ACHinf+ACHnat+ACHmech)*V/3600)+Qmech,mdot=Vdot*rho,win=wTRH(Tin,RHin),wout=wTRH(Tout,RHout),hin=hTw(Tin,win),hout=hTw(Tout,wout),dTv=Math.abs(Tout-Tin),QventS=mdot*cp*dTv*1000;let QventL=0;if(mode==='cool'){const Qt=mdot*Math.max(0,hout-hin)*1000;QventL=Math.max(0,Qt-QventS)}const VdotM=((ACHmech*V)/3600)+Qmech,mdotM=VdotM*rho,QmechS=mdotM*cp*dTv*1000;let QmechL=0;if(mode==='cool'){const Qt=mdotM*Math.max(0,hout-hin)*1000;QmechL=Math.max(0,Qt-QmechS)}const nP=num('nPeople',0),[Ps,Pl]=str('PeopleActivity','100|75').split('|').map(parseFloat),QpS=nP*Ps,QpL=nP*Pl,Qlight=num('LightingWm2',8)*Afloor;let Qdev=0;document.querySelectorAll('#devTable tbody tr').forEach(tr=>{const Wv=parseFloat(tr.querySelector('.dv-W').value)||0,d=clamp(parseFloat(tr.querySelector('.dv-duty').value)||1,0,1);Qdev+=Wv*d});
+let sens={},lat={};if(mode==='cool'){sens={'External walls':QwallExt,'Walls to unconditioned':QwallUnh,'Roof to outdoor':QroofExt,'Roof to unconditioned':QroofUnh,'Windows conduction':Qwinc,'Windows solar':Qwins,'Floor to ground/pilotis':QfloorG,'Floor to unconditioned':QfloorU,'Ventilation sensible':QventS,'Lighting':Qlight,'Equipment':Qdev,'People sensible':QpS};lat={'Ventilation latent':QventL,'People latent':QpL}}else{sens={'External walls losses':QwallExt,'Walls to unconditioned losses':QwallUnh,'Roof to outdoor losses':QroofExt,'Roof to unconditioned losses':QroofUnh,'Windows conduction losses':Qwinc,'Floor to ground/pilotis losses':QfloorG,'Floor to unconditioned losses':QfloorU,'Ventilation sensible losses':QventS};lat={}}
+const Qs=Object.values(sens).reduce((a,b)=>a+b,0),Ql=Object.values(lat).reduce((a,b)=>a+b,0),Qt=Qs+Ql,list=p=>Object.entries(p).filter(([,v])=>v>1).map(([k,v])=>`<div class="rowline"><span>${k}</span><span>${toU(v)}</span></div>`).join('');
+const r=$('result');if(r){r.innerHTML=`<div class="kpi"><div class="muted">${mode==='cool'?'Cooling Load':'Heating Losses'}</div><b>${toU(Qt)}</b></div><div class="section"><h2>Sensible Breakdown</h2>${list(sens)}</div>${mode==='cool'?`<div class="section"><h2>Latent Breakdown</h2>${list(lat)}</div>`:''}<div class="section"><h2>Totals</h2><div class="rowline"><span>Total sensible</span><span id="sumQsVal" data-w="${Qs}">${toU(Qs)}</span></div><div class="rowline"><span>Total latent</span><span id="sumQlVal" data-w="${Ql}">${toU(Ql)}</span></div></div>${VdotM>0?`<div class="section"><h2>Mechanical OA contribution</h2><div class="rowline"><span>Flow rate</span><span>${(VdotM*3600).toFixed(0)} m3/h</span></div><div class="rowline"><span>Sensible</span><span>${toU(QmechS)}</span></div><div class="rowline"><span>Latent</span><span>${toU(QmechL)}</span></div></div>`:''}${mode==='heat'?`<div class="warn">Heating mode reports envelope + ventilation losses only.</div>`:''}`}
+ drawPie('pie',sens,lat)}
+const fmt=(x,u)=>u==='kW'?(x/1000).toFixed(2)+' kW':Math.round(x)+' W';
+const snap=()=>{try{const U=str('Units','W'),M=str('Mode','cool'),L=num('L',0),Wm=num('W',0),H=num('H',0),V=L*Wm*H,Tin=num('Tin',24),RHin=num('RHin',45),Tout=num('Tout',36),RHout=num('RHout',40),mm=str('MechMode','ach'),ACHm=mm==='ach'?num('ACHmech',0):0,Qm=mm==='flow'?num('Qmech',0):0,Vm=(ACHm*V/3600)+(Qm/3600),md=Vm*rho,win=wTRH(Tin,RHin),wout=wTRH(Tout,RHout),hin=hTw(Tin,win),hout=hTw(Tout,wout),dT=Math.abs(Tout-Tin),Qms=md*cp*dT*1000,Qmt=M==='cool'?md*Math.max(0,hout-hin)*1000:0,Qml=M==='cool'?Math.max(0,Qmt-Qms):0,qs=parseFloat($('sumQsVal')?.getAttribute('data-w')||'NaN'),ql=parseFloat($('sumQlVal')?.getAttribute('data-w')||'NaN');return{U,M,Tin,RHin,win,hin,Tout,RHout,wout,hout,Vm,md,Qms,Qml,qs,ql,qt:qs+ql}}catch{return null}};
+const renderSummary=()=>{const s=snap(),el=$('psychroSummary');if(!el)return;if(!s){el.innerHTML='<div class="warn">Run load calculation first.</div>';return;}el.innerHTML=`<div class="grid cols-3"><div class="kpi"><div class="muted">Return Air (RA)</div><b>${s.Tin.toFixed(1)} degC / ${s.RHin.toFixed(0)}% RH</b><div>w=${s.win.toFixed(4)} kg/kg</div><div>h=${s.hin.toFixed(1)} kJ/kg</div></div><div class="kpi"><div class="muted">Outdoor Air (OA)</div><b>${s.Tout.toFixed(1)} degC / ${s.RHout.toFixed(0)}% RH</b><div>w=${s.wout.toFixed(4)} kg/kg</div><div>h=${s.hout.toFixed(1)} kJ/kg</div></div><div class="kpi"><div class="muted">Mechanical OA</div><b>${(s.Vm*3600).toFixed(0)} m3/h</b><div>m_dot=${s.md.toFixed(3)} kg/s</div><div>Qs=${fmt(s.Qms,s.U)} - Ql=${fmt(s.Qml,s.U)}</div></div></div><div class="grid cols-2" style="margin-top:10px"><div class="kpi"><div class="muted">Room totals</div><b>${fmt(s.qt||0,s.U)}</b><div>Qs=${fmt(s.qs||0,s.U)} - Ql=${fmt(s.ql||0,s.U)}</div></div><div class="kpi"><div class="muted">SHR</div><b>${(s.qs&&s.qt?(s.qs/s.qt)*100:0).toFixed(1)}%</b><div>SHR = Qs/(Qs+Ql)</div></div></div>`};
+const roomData=()=>{const M=str('Mode','cool'),Tin=num('Tin',24),RHin=num('RHin',45),Tout=num('Tout',36),RHout=num('RHout',40),L=num('L',0),Wm=num('W',0),H=num('H',0),V=L*Wm*H,mm=str('MechMode','ach'),ACHm=mm==='ach'?num('ACHmech',0):0,Qm=mm==='flow'?num('Qmech',0):0,Voa=(ACHm*V/3600)+(Qm/3600),qs=parseFloat($('sumQsVal')?.getAttribute('data-w')||'NaN'),ql=parseFloat($('sumQlVal')?.getAttribute('data-w')||'NaN');return{M,Tin,RHin,Tout,RHout,Voa,qs,ql}};
+const bis=(fn,lo,hi,t=1e-4,m=60)=>{let flo=fn(lo),fhi=fn(hi);if(!isFinite(flo)||!isFinite(fhi))return NaN;if(flo*fhi>0){let b=lo,bf=Math.abs(flo);for(let i=1;i<=m;i++){const x=lo+i*(hi-lo)/m,fx=fn(x);if(Math.abs(fx)<bf){b=x;bf=Math.abs(fx)}}return b}for(let i=0;i<m;i++){const mid=(lo+hi)/2,fm=fn(mid);if(Math.abs(fm)<t)return mid;if(flo*fm<=0){hi=mid;fhi=fm}else{lo=mid;flo=fm}}return(lo+hi)/2};
+const psychro=()=>{const out=$('psychroMix'),R=roomData();if(!out)return;if(R.M!=='cool'){out.innerHTML='<div class="warn">Psychrometric coil model is available in cooling mode only.</div>';return;}if(!isFinite(R.qs)){out.innerHTML='<div class="warn">Run load calculation first (Qs/Ql required).</div>';return;}const TsaT=num('PS_Tsa',14),RHm=str('PS_SA_RH_mode','sat'),RHsa=num('PS_RHsa',95),SA=parseFloat(str('PS_SA_manual','')),press=num('PS_Pressurization',0),tm=str('PS_Mode','fixT'),cm=str('PS_CoilMode','off');let BFi=clamp(num('PS_BF',.1),0,.5),ADPi=num('PS_ADP',12),LWT=parseFloat(str('PS_LWT',''));
+const win=wTRH(R.Tin,R.RHin),wout=wTRH(R.Tout,R.RHout),hin=hTw(R.Tin,win),hout=hTw(R.Tout,wout);let Vsa;if(isFinite(SA)&&SA>0)Vsa=SA/3600;else{const md=R.qs/(cp*1000*Math.max(.1,(R.Tin-TsaT)));Vsa=md/rho}const Voa=Math.max(0,R.Voa),Vrec=Math.max(0,Vsa-Voa),mO=Voa*rho,mR=Vrec*rho,mS=Vsa*rho,wm=(mO*wout+mR*win)/Math.max(1e-9,mO+mR),hm=(mO*hout+mR*hin)/Math.max(1e-9,mO+mR),Tm=T_hw(hm,wm),RHmix=RH_Tw(Tm,wm);
+let Tsa,wsa,RHs,hsa,ADP=NaN,BF=NaN,note='';if(cm==='off'){Tsa=TsaT;if(tm==='fixT'){if(RHm==='sat'){RHs=100;wsa=wTRH(Tsa,100)}else if(RHm==='roomw'){wsa=win;RHs=RH_Tw(Tsa,wsa)}else{const r=clamp(RHsa,5,100);RHs=r;wsa=wTRH(Tsa,r)}hsa=hTw(Tsa,wsa)}else{if(!(isFinite(SA)&&SA>0)){out.innerHTML='<div class="warn">Fixed RHsa mode requires known SA airflow (m3/h).</div>';return;}const r=clamp(RHsa,5,100);Tsa=Tm-(R.qs/(mS*cp*1000));wsa=wTRH(Tsa,r);RHs=r;hsa=hTw(Tsa,wsa)}note='<div class="muted">Coil model: Off</div>'}else{if(cm==='bf'){BF=BFi;const f=Tadp=>{const wadp=wTRH(Tadp,100),hadp=hTw(Tadp,wadp),hc=hadp+BF*(hm-hadp),wc=wadp+BF*(wm-wadp),Tc=T_hw(hc,wc);return Tc-TsaT};ADP=bis(f,-5,Tm-.1,1e-3,80)}else{ADP=ADPi;const f=bf=>{const wadp=wTRH(ADP,100),hadp=hTw(ADP,wadp),hc=hadp+bf*(hm-hadp),wc=wadp+bf*(wm-wadp),Tc=T_hw(hc,wc);return Tc-TsaT};BF=clamp(bis(f,0,.5,1e-4,80),0,.5)}const wadp=wTRH(ADP,100),hadp=hTw(ADP,wadp),hc=hadp+BF*(hm-hadp),wc=wadp+BF*(wm-wadp),Tc=T_hw(hc,wc);Tsa=Tc;wsa=wc;hsa=hc;RHs=RH_Tw(Tsa,wsa);note=`<div class="muted">Coil model active: ADP=${ADP.toFixed(1)} degC, BF=${BF.toFixed(3)}</div>`}
+const Qct=mS*Math.max(0,hm-hsa)*1000,Qcs=mS*Math.max(0,Tm-Tsa)*cp*1000,Qcl=Math.max(0,Qct-Qcs),VsaH=Vsa*3600,VoaH=Voa*3600,VrecH=Vrec*3600,exh=Math.max(0,VoaH-press),ret=Math.max(0,VsaH-exh);let lwt='';if(isFinite(LWT)&&!isNaN(ADP)){if(ADP<LWT)lwt=`<div class="warn">Check: ADP (${ADP.toFixed(1)} degC) < LWT (${LWT.toFixed(1)} degC). Usually ADP ~ LWT + 1..3K.</div>`;else if(ADP<LWT+1)lwt=`<div class="warn">Tight approach: ADP very close to LWT.</div>`}
+const fU=x=>str('Units','W')==='kW'?`${(x/1000).toFixed(2)} kW`:`${Math.round(x)} W`;out.innerHTML=`<div class="grid cols-3"><div class="kpi"><div class="muted">Supply airflow (SA)</div><b>${VsaH.toFixed(0)} m3/h</b><div>OA fraction: ${((VoaH/Math.max(1,VsaH))*100).toFixed(1)}%</div></div><div class="kpi"><div class="muted">Mixed air @ coil inlet</div><b>${Tm.toFixed(1)} degC</b><div>RH~${RHmix.toFixed(0)}% - w=${wm.toFixed(4)} kg/kg</div><div>h=${hm.toFixed(1)} kJ/kg</div></div><div class="kpi"><div class="muted">Supply state (SA)</div><b>${Tsa.toFixed(1)} degC / ${RHs.toFixed(0)}% RH</b><div>w=${wsa.toFixed(4)} kg/kg</div><div>h=${hsa.toFixed(1)} kJ/kg</div></div></div><div class="grid cols-3" style="margin-top:10px"><div class="kpi"><div class="muted">Coil load</div><b>${fU(Qct)}</b><div>Qs=${fU(Qcs)} - Ql=${fU(Qcl)}</div></div><div class="kpi"><div class="muted">Return / Exhaust</div><b>Return ~ ${ret.toFixed(0)} m3/h</b><div>Exhaust ~ ${exh.toFixed(0)} m3/h</div></div><div class="kpi"><div class="muted">Flow balance</div><b>${(Math.abs((VoaH+VrecH)-VsaH)<1e-6)?'OK':'Check'}</b><div>SA = OA + Recirc</div></div></div>${note}${lwt}`};
+const suggestT=()=>{const R=roomData();window.__suggestNote='';if(R.M!=='cool')return;const SA=parseFloat(str('PS_SA_manual',''));if(!(isFinite(SA)&&SA>0)){window.__suggestNote='Enter known SA airflow (m3/h) to use Suggest Tsa.';return;}const win=wTRH(R.Tin,R.RHin),wout=wTRH(R.Tout,R.RHout),hin=hTw(R.Tin,win),hout=hTw(R.Tout,wout),Vsa=SA/3600,Voa=Math.max(0,R.Voa),Vrec=Math.max(0,Vsa-Voa),mO=Voa*rho,mR=Vrec*rho,mS=Vsa*rho,wm=(mO*wout+mR*win)/Math.max(1e-9,mO+mR),hm=(mO*hout+mR*hin)/Math.max(1e-9,mO+mR),Tm=T_hw(hm,wm),rawT=Tm-(R.qs/(mS*cp*1000));let Tsa=isFinite(rawT)?rawT:(R.Tin-10),clip=clamp(Tsa,6,22);if(Math.abs(clip-Tsa)>0.2)window.__suggestNote=`Suggested Tsa clipped to ${clip.toFixed(1)} degC (raw ${Tsa.toFixed(1)}).`;if($('PS_Tsa'))$('PS_Tsa').value=clip.toFixed(1)};
+const psychroHint=()=>{const m=str('PS_Mode','fixT'),rh=str('PS_SA_RH_mode','sat'),cm=str('PS_CoilMode','off'),sa=parseFloat(str('PS_SA_manual','')),known=isFinite(sa)&&sa>0,h=$('psychroInputHint');if($('PS_RHsa'))$('PS_RHsa').disabled=(rh!=='manual'&&m!=='fixRH');if($('PS_BF'))$('PS_BF').disabled=(cm!=='bf');if($('PS_ADP'))$('PS_ADP').disabled=(cm!=='adp');if(!h)return;let msg='Workflow: calculate loads, set supply mode, then recalculate psychrometrics.';if(m==='fixRH'&&!known)msg='Fixed RHsa mode requires known SA airflow (m3/h).';else if(m==='fixT'&&!known)msg='SA airflow is optional: estimated from Qs and Tsa.';if(cm==='bf')msg+=' BF input -> ADP solved.';else if(cm==='adp')msg+=' ADP input -> BF solved.';if(window.__suggestNote)msg+=' '+window.__suggestNote;h.textContent=msg};
+const showLoads=()=>{$('loadsPane').style.display='grid';$('psychroPane').style.display='none';$('tabLoads').classList.add('active');$('tabPsychro').classList.remove('active')},showPsychro=()=>{renderSummary();psychroHint();psychro();$('psychroPane').style.display='block';$('tabPsychro').classList.add('active');$('tabLoads').classList.remove('active');window.scrollTo({top:0,behavior:'smooth'})};
+$('tabLoads')?.addEventListener('click',showLoads);$('tabPsychro')?.addEventListener('click',showPsychro);$('closePsychro')?.addEventListener('click',showLoads);
+$('PS_Recalc')?.addEventListener('click',()=>{psychroHint();psychro()});$('PS_Suggest_T')?.addEventListener('click',()=>{suggestT();psychroHint();psychro()});
+['Units','Mode','Tin','RHin','Tout','RHout','ACHmech','Qmech','MechMode','btnCalc','PS_CoilMode','PS_BF','PS_ADP','PS_LWT','PS_Tsa','PS_SA_RH_mode','PS_RHsa','PS_SA_manual','PS_Pressurization','PS_Mode'].forEach(id=>{const el=$(id);if(!el)return;const fn=()=>{psychroHint();if($('psychroPane').style.display!=='none'){renderSummary();psychro()}};el.addEventListener('change',fn);el.addEventListener('input',fn);el.addEventListener('click',fn)});
+const HELP={PS_Mode:'Fixed Tsa is simplest. Fixed RHsa needs known SA.',PS_Tsa:'Supply air dry-bulb temperature.',PS_SA_manual:'If empty, SA is estimated from sensible load.',PS_SA_RH_mode:'How supply RH/w is defined in fixed-T mode.',PS_RHsa:'Used in manual RH mode.',PS_CoilMode:'Optional ADP/BF consistency model.',PS_BF:'Bypass factor (lower means stronger coil contact).',PS_ADP:'Apparatus dew point.',PS_LWT:'Leaving water temperature for ADP plausibility check.'};Object.entries(HELP).forEach(([id,t])=>{const el=$(id),host=el?.closest('div');if(!el||!host)return;const d=document.createElement('div');d.className='input-help';d.textContent=t;host.appendChild(d)});
+$('btnCalc')?.addEventListener('click',()=>{calc();renderSummary();if($('psychroPane').style.display!=='none')psychro()});
+bindCustom('UwallPreset','UwallCustom');bindCustom('UwinPreset','UwinCustom');bindCustom('UroofPreset','UroofCustom');bindCustom('UfloorPreset','UfloorCustom');bindPct(['RoofPctExt','RoofPctUnh','RoofPctHeated'],'roofPctHint','Roof');bindPct(['FloorPctGround','FloorPctUnh','FloorPctHeated'],'floorPctHint','Floor');bindFloorHint();$('H')?.addEventListener('input',()=>{$('H_display').value=$('H').value});if($('H')&&$('H_display'))$('H_display').value=$('H').value;applyCity();setpoints();calc();renderSummary();showLoads()
+};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();})();
+</script>
+</body>
+</html>
+
+
+
