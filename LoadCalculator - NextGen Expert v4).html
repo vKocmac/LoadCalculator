@@ -2,6 +2,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HVAC Load Calculator</title>
@@ -1264,7 +1272,15 @@
     if (!winRef) return;
     const title = currentLang === "el" ? "Αναφορά Φορτίων Κτιρίου" : "Building Load Report";
     const rows = spaces.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.mode}</td><td>${fmtPower(s.totalW)}</td><td>${fmtPower(s.qsW)}</td><td>${fmtPower(s.qlW)}</td></tr>`).join("");
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Λειτουργία':'Mode'}</th><th>${currentLang==='el'?'Σύνολο':'Total'}</th><th>Qs</th><th>Ql</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    winRef.document.write(`<!DOCTYPE html><html><head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Λειτουργία':'Mode'}</th><th>${currentLang==='el'?'Σύνολο':'Total'}</th><th>Qs</th><th>Ql</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
     winRef.document.close();
     winRef.focus();
     setTimeout(() => winRef.print(), 250);
@@ -1283,7 +1299,15 @@
     const winRef = window.open("", "_blank");
     if (!winRef) return;
     const title = currentLang === "el" ? "Αναφορά Ψυχρομετρίας" : "Psychrometrics Report";
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><p>${currentLang==='el'?'Χώρος':'Room'}: ${room?room.name:(currentLang==='el'?'Τρέχον':'Current')}</p><table><tbody><tr><th>SA [m3/h]</th><td>${data.VsaH.toFixed(0)}</td></tr><tr><th>Tmix [degC]</th><td>${data.Tm.toFixed(2)}</td></tr><tr><th>Tsa [degC]</th><td>${data.Tsa.toFixed(2)}</td></tr><tr><th>RHsa [%]</th><td>${data.RHs.toFixed(1)}</td></tr><tr><th>Qcoil total</th><td>${fmtPower(data.Qct)}</td></tr><tr><th>Qs</th><td>${fmtPower(data.Qcs)}</td></tr><tr><th>Ql</th><td>${fmtPower(data.Qcl)}</td></tr></tbody></table></body></html>`);
+    winRef.document.write(`<!DOCTYPE html><html><head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><p>${currentLang==='el'?'Χώρος':'Room'}: ${room?room.name:(currentLang==='el'?'Τρέχον':'Current')}</p><table><tbody><tr><th>SA [m3/h]</th><td>${data.VsaH.toFixed(0)}</td></tr><tr><th>Tmix [degC]</th><td>${data.Tm.toFixed(2)}</td></tr><tr><th>Tsa [degC]</th><td>${data.Tsa.toFixed(2)}</td></tr><tr><th>RHsa [%]</th><td>${data.RHs.toFixed(1)}</td></tr><tr><th>Qcoil total</th><td>${fmtPower(data.Qct)}</td></tr><tr><th>Qs</th><td>${fmtPower(data.Qcs)}</td></tr><tr><th>Ql</th><td>${fmtPower(data.Qcl)}</td></tr></tbody></table></body></html>`);
     winRef.document.close();
     winRef.focus();
     setTimeout(() => winRef.print(), 250);
@@ -2485,6 +2509,8 @@
 </script>
 </body>
 </html>
+
+
 
 
 
