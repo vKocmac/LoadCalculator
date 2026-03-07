@@ -350,6 +350,70 @@
     .formulas code {
       color: #ffe2a9;
     }
+
+    .space-row.selectable { cursor: pointer; }
+    .space-row.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .space-row.dirty {
+      border-color: var(--warn);
+      background: rgba(251, 191, 36, 0.12);
+    }
+    .space-badges {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      color: #d7ebfa;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .badge.sel {
+      border-color: var(--accent);
+      color: #c9fff7;
+    }
+    .badge.dirty {
+      border-color: var(--warn);
+      color: #ffe8ba;
+    }
+
+    @media (max-width: 980px) {
+      body { padding: 10px; }
+      .hero { border-radius: 14px; padding: 12px; }
+      .main { padding: 10px; }
+      .section { padding: 10px; }
+      .side { position: static; top: auto; }
+      .workspace { grid-template-columns: 1fr; }
+      .tabs { gap: 6px; }
+      .tab-btn { flex: 1 1 calc(50% - 6px); min-height: 44px; }
+      canvas { width: 100% !important; height: auto; }
+    }
+
+    @media (max-width: 768px) {
+      body { font-size: 15px; }
+      label { font-size: 0.96rem; }
+      .desc, .hintline, .muted, .input-help { font-size: 0.9rem; }
+      input, select, button { min-height: 44px; font-size: 1rem; }
+      .kpi b { font-size: 1.18rem; }
+      .table { font-size: 0.84rem; display: block; overflow-x: auto; white-space: nowrap; }
+      .table th, .table td { padding: 8px 10px; }
+      .inline-btns { grid-template-columns: 1fr !important; }
+      .space-row .meta { font-size: 0.9rem; }
+    }
+
+    @media (max-width: 430px) {
+      .hero h1 { font-size: 1.2rem; }
+      .hero-card { font-size: 0.84rem; }
+      .lang-wrap { flex-direction: column; align-items: stretch; }
+      .kpi { padding: 9px; }
+      .rowline { font-size: 0.9rem; }
+    }
   </style>
 </head>
 <body data-mode="cool">
@@ -403,6 +467,10 @@
 
       <div class="mini">
         <div style="font-weight:700;margin-bottom:6px" id="spaceMgrTitle">Σύνθεση Κτιρίου (Χώροι)</div>
+        <div style="margin-bottom:8px">
+          <label id="projectNameLabel" for="projectName">Project / Study Name</label>
+          <input id="projectName" type="text" placeholder="Untitled Study" />
+        </div>
         <div class="grid cols-2" style="margin-bottom:8px">
           <div><input id="roomName" type="text" placeholder="Όνομα χώρου" /></div>
           <div><button id="addRoomBtn" class="ghost" type="button">Προσθήκη Χώρου</button></div>
@@ -513,6 +581,7 @@
           <div><label>Adjacent zone temp [degC]</label><input id="Tadj" type="number" step="0.5" value="30"></div>
           <div><label>Height mirror [m]</label><input id="H_display" type="number" value="2.8" disabled></div>
         </div>
+        <div id="wallPctHint" class="hintline"></div>
       </div>
 
       <div class="section">
@@ -874,6 +943,9 @@
   let spaces = [];
   let lastCalc = null;
   let lastPsychro = null;
+  let selectedRoomId = "";
+  let selectedRoomDirty = false;
+  let selectedRoomLoadedSignature = "";
 
   const INPUT_IDS = [
     "Mode","Units","city","L","W","H","Tin","RHin","Tout","RHout",
@@ -885,6 +957,8 @@
     "nPeople","PeopleActivity","LightingWm2",
     "PS_ViewMode","PS_Mode","PS_Tsa","PS_SA_RH_mode","PS_RHsa","PS_SA_manual","PS_Pressurization","PS_CoilMode","PS_BF","PS_ADP","PS_LWT"
   ];
+
+  const ROOM_INPUT_IDS = INPUT_IDS.filter((id) => !id.startsWith("PS_"));
 
   const I18N = {
     en: {
@@ -898,6 +972,8 @@
       assumpTitle: "Active assumptions",
       formulasTitle: "Model equations",
       spaceMgrTitle: "Building Spaces",
+      projectNameLabel: "Project / Study Name",
+      projectNamePh: "Untitled Study",
       quickTitle: "Quick actions",
       checksTitle: "Input checks",
       psychroTitle: "Psychrometrics",
@@ -928,6 +1004,8 @@
       assumpTitle: "Ενεργές παραδοχές",
       formulasTitle: "Τύποι που χρησιμοποιούνται",
       spaceMgrTitle: "Σύνθεση Κτιρίου (Χώροι)",
+      projectNameLabel: "Όνομα Έργου / Μελέτης",
+      projectNamePh: "Ανώνυμη Μελέτη",
       quickTitle: "Γρήγορες ενέργειες",
       checksTitle: "Έλεγχοι εισόδων",
       psychroTitle: "Ψυχρομετρία",
@@ -1101,6 +1179,48 @@
     if (el && typeof text === "string") el.textContent = text;
   }
 
+  function projectNameValue() {
+    const raw = (str("projectName", "") || "").trim();
+    return raw || tr("Untitled Study", "Ανώνυμη Μελέτη");
+  }
+
+  function captureSnapshotSignature() {
+    const data = {};
+    ROOM_INPUT_IDS.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      data[id] = el.value;
+    });
+    return JSON.stringify(data);
+  }
+
+  function selectedRoomIndex() {
+    return spaces.findIndex((s) => s.id === selectedRoomId);
+  }
+
+  function clearSelectedRoomState() {
+    selectedRoomId = "";
+    selectedRoomDirty = false;
+    selectedRoomLoadedSignature = "";
+  }
+
+  function markSelectedRoomDirty() {
+    if (!selectedRoomId) return;
+    const idx = selectedRoomIndex();
+    if (idx < 0) {
+      clearSelectedRoomState();
+      return;
+    }
+    selectedRoomDirty = captureSnapshotSignature() !== selectedRoomLoadedSignature;
+    renderSpaces();
+  }
+
+  function setSelectedRoomDirty(value = true) {
+    if (!selectedRoomId) return;
+    selectedRoomDirty = value;
+    renderSpaces();
+  }
+
   function modeTabLabel() {
     const mode = str("Mode", "cool");
     if (currentLang === "el") return mode === "heat" ? "Απώλειες" : "Φορτία";
@@ -1119,6 +1239,7 @@
     setTxt("assumpTitle", d.assumpTitle);
     setTxt("formulasTitle", d.formulasTitle);
     setTxt("spaceMgrTitle", d.spaceMgrTitle);
+    setTxt("projectNameLabel", d.projectNameLabel);
     setTxt("quickTitle", d.quickTitle);
     setTxt("checksTitle", d.checksTitle);
     setTxt("psychroTitle", d.psychroTitle);
@@ -1138,12 +1259,14 @@
     setTxt("exportLoadDetailedPdfBtn", d.exportLoadDetailedPdfBtn);
 
     if ($("roomName")) $("roomName").placeholder = d.roomNamePh;
+    if ($("projectName")) $("projectName").placeholder = d.projectNamePh;
     if ($("tabLoads")) $("tabLoads").textContent = modeTabLabel();
 
     Object.keys(OPTIONS).forEach((id) => fillSelect(id, OPTIONS[id]));
 
     collapseBilingualPairs();
     renderAssumptions();
+    updateWallHint();
     renderSpaces();
     renderLiveChecks();
   }
@@ -1221,7 +1344,13 @@
     host.innerHTML = spaces.map((s) => {
       const cool = spaceCoolTotal(s);
       const heat = spaceHeatTotal(s);
-      return `<div class="space-row"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtPower(cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtPower(heat)}</div><div class="meta">Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}</div><div style="margin-top:6px"><button class="ghost" type="button" onclick="window.__removeSpace('${s.id}')">x</button></div></div>`;
+      const isSelected = s.id === selectedRoomId;
+      const isDirty = isSelected && selectedRoomDirty;
+      const cls = ["space-row", "selectable", isSelected ? "selected" : "", isDirty ? "dirty" : ""].filter(Boolean).join(" ");
+      const badges = [];
+      if (isSelected) badges.push(`<span class="badge sel">${tr("selected", "επιλεγμένο")}</span>`);
+      if (isDirty) badges.push(`<span class="badge dirty">${tr("modified", "τροποποιημένο")}</span>`);
+      return `<div class="${cls}" onclick="window.__selectSpace('${s.id}')"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtPower(cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtPower(heat)}</div><div class="meta">Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}</div>${badges.length ? `<div class="space-badges">${badges.join("")}</div>` : ""}<div style="margin-top:6px"><button class="ghost" type="button" onclick="event.stopPropagation(); window.__removeSpace('${s.id}')">x</button></div></div>`;
     }).join("");
 
     const coolTot = spaces.reduce((a, s) => a + spaceCoolTotal(s), 0);
@@ -1235,36 +1364,39 @@
   function refreshRoomSelect() {
     const sel = $("psRoomSelect");
     if (!sel) return;
-    const cur = sel.value;
     const first = currentLang === "el" ? "Τρέχοντα δεδομένα" : "Current inputs";
     const opts = [`<option value="">${first}</option>`].concat(
       spaces.map((s) => `<option value="${s.id}">${s.name}</option>`)
     );
     sel.innerHTML = opts.join("");
-    if (cur) sel.value = cur;
+    if (selectedRoomId) sel.value = selectedRoomId;
   }
 
   window.__removeSpace = (id) => {
     spaces = spaces.filter((s) => s.id !== id);
+    if (selectedRoomId === id) clearSelectedRoomState();
     renderSpaces();
   };
 
-  function addCurrentRoom() {
-    if (!lastCalc) {
-      const h = $("liveChecks");
-      if (h) h.innerHTML = currentLang==="el" ? '<div class="warn">Πρώτα κάνε υπολογισμό για να αποθηκεύσεις χώρο.</div>' : '<div class="warn">Run calculation first before saving a room.</div>';
-      return;
-    }
-    const nameIn = (str("roomName", "") || "").trim();
-    const idx = spaces.length + 1;
-    const name = nameIn || (currentLang === "el" ? `Χώρος ${idx}` : `Space ${idx}`);
-    const id = `r${Date.now()}${Math.floor(Math.random()*1000)}`;
+  window.__selectSpace = (id) => {
+    const room = spaces.find((s) => s.id === id);
+    if (!room) return;
+    selectedRoomId = id;
+    selectedRoomDirty = false;
+    selectedRoomLoadedSignature = JSON.stringify(room.inputs || {});
+    if ($("psRoomSelect")) $("psRoomSelect").value = id;
+    applyInputSnapshot(room.inputs);
+    const hint = $("psychroRoomHint");
+    if (hint) hint.textContent = tr(`Loaded room: ${room.name}`, `Φορτώθηκε ο χώρος: ${room.name}`);
+    renderSpaces();
+  };
+
+  function buildRoomState(id, name) {
     const modeNow = str("Mode", "cool");
     const coolData = computeLoadsForMode("cool");
     const heatData = computeLoadsForMode("heat");
     const activeData = modeNow === "heat" ? heatData : coolData;
-
-    spaces.push({
+    return {
       id,
       name,
       mode: modeNow,
@@ -1278,7 +1410,7 @@
       heatQsW: heatData.Qs,
       heatQlW: heatData.Ql,
       inputs: captureInputs(),
-      assumptions: [...lastCalc.assumptions],
+      assumptions: [...(lastCalc?.assumptions || [])],
       sensible: { ...activeData.sensible },
       latent: { ...activeData.latent },
       coolSensible: { ...coolData.sensible },
@@ -1286,24 +1418,49 @@
       heatSensible: { ...heatData.sensible },
       heatLatent: { ...heatData.latent },
       psychro: lastPsychro ? { ...lastPsychro } : null
-    });
+    };
+  }
 
+  function addCurrentRoom() {
+    if (!lastCalc) {
+      const h = $("liveChecks");
+      if (h) h.innerHTML = currentLang === "el" ? '<div class="warn">Πρώτα κάνε υπολογισμό για να αποθηκεύσεις χώρο.</div>' : '<div class="warn">Run calculation first before saving a room.</div>';
+      return;
+    }
+
+    const nameIn = (str("roomName", "") || "").trim();
+    const idx = spaces.length + 1;
+    const name = nameIn || (currentLang === "el" ? `Χώρος ${idx}` : `Space ${idx}`);
+    const id = `r${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+    spaces.push(buildRoomState(id, name));
     if ($("roomName")) $("roomName").value = "";
     renderSpaces();
   }
 
   function loadSelectedRoom() {
     const id = str("psRoomSelect", "");
-    if (!id) return;
-    const room = spaces.find((s) => s.id === id);
-    if (!room) return;
-    applyInputSnapshot(room.inputs);
-    const hint = $("psychroRoomHint");
-    if (hint) {
-      hint.textContent = currentLang === "el"
-        ? `Φορτώθηκε ο χώρος: ${room.name}`
-        : `Loaded room: ${room.name}`;
+    if (!id) {
+      clearSelectedRoomState();
+      renderSpaces();
+      return;
     }
+    window.__selectSpace(id);
+  }
+
+  function syncSelectedRoomAfterCalculation() {
+    if (!selectedRoomId || !lastCalc) return;
+    const idx = selectedRoomIndex();
+    if (idx < 0) {
+      clearSelectedRoomState();
+      renderSpaces();
+      return;
+    }
+    const existing = spaces[idx];
+    spaces[idx] = buildRoomState(existing.id, existing.name);
+    selectedRoomDirty = false;
+    selectedRoomLoadedSignature = captureSnapshotSignature();
+    renderSpaces();
   }
 
   function mergeBreakdown(items, field) {
@@ -1356,6 +1513,8 @@
     if (!winRef) return;
 
     const title = currentLang === "el" ? "Συνοπτική Αναφορά Φορτίων" : "Load Summary Report";
+    const project = projectNameValue();
+    const dateTxt = new Date().toLocaleString();
     const rows = spaces.map((s, i) => {
       const cool = spaceCoolTotal(s);
       const heat = spaceHeatTotal(s);
@@ -1366,7 +1525,7 @@
     const heatTot = spaces.reduce((a, s) => a + spaceHeatTotal(s), 0);
     const grand = coolTot + heatTot;
 
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}.tot{font-weight:700;background:#f4f4f4}</style></head><body><h1>${title}</h1><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Ψύξη':'Cooling'}</th><th>${currentLang==='el'?'Απώλειες':'Heat losses'}</th><th>${currentLang==='el'?'Qs ψύξης':'Cooling Qs'}</th><th>${currentLang==='el'?'Ql ψύξης':'Cooling Ql'}</th><th>${currentLang==='el'?'Qs απωλειών':'Heat Qs'}</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Ψύξης':'Cooling Total'}</td><td colspan="5">${fmtPower(coolTot)}</td></tr><tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Απωλειών':'Heat Losses Total'}</td><td colspan="5">${fmtPower(heatTot)}</td></tr><tr class="tot"><td colspan="2">${currentLang==='el'?'Συνδυαστικό Άθροισμα':'Combined Sum'}</td><td colspan="5">${fmtPower(grand)}</td></tr></tbody></table></body></html>`);
+    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}.tot{font-weight:700;background:#f4f4f4}</style></head><body><h1>${title}</h1><p><b>${currentLang==='el'?'Έργο/Μελέτη':'Project'}:</b> ${project}</p><p><b>${currentLang==='el'?'Ημερομηνία':'Date'}:</b> ${dateTxt}</p><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Ψύξη':'Cooling'}</th><th>${currentLang==='el'?'Απώλειες':'Heat losses'}</th><th>${currentLang==='el'?'Qs ψύξης':'Cooling Qs'}</th><th>${currentLang==='el'?'Ql ψύξης':'Cooling Ql'}</th><th>${currentLang==='el'?'Qs απωλειών':'Heat Qs'}</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Ψύξης':'Cooling Total'}</td><td colspan="5">${fmtPower(coolTot)}</td></tr><tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Απωλειών':'Heat Losses Total'}</td><td colspan="5">${fmtPower(heatTot)}</td></tr><tr class="tot"><td colspan="2">${currentLang==='el'?'Συνδυαστικό Άθροισμα':'Combined Sum'}</td><td colspan="5">${fmtPower(grand)}</td></tr></tbody></table></body></html>`);
     winRef.document.close();
     winRef.focus();
     setTimeout(() => winRef.print(), 250);
@@ -1377,6 +1536,8 @@
     if (!winRef) return;
 
     const title = currentLang === "el" ? "Αναλυτική Αναφορά Φορτίων" : "Detailed Load Report";
+    const project = projectNameValue();
+    const dateTxt = new Date().toLocaleString();
 
     const coolItems = spaces.map((s) => ({ sensible: s.coolSensible || (s.mode === "cool" ? (s.sensible || {}) : {}), latent: s.coolLatent || (s.mode === "cool" ? (s.latent || {}) : {}) }));
     const heatItems = spaces.map((s) => ({ sensible: s.heatSensible || (s.mode === "heat" ? (s.sensible || {}) : {}) }));
@@ -1399,7 +1560,7 @@
 
     const summaryPage = `<section><h2>${currentLang==='el'?'Σύνοψη Κτιρίου':'Building Summary'}</h2><p><b>${currentLang==='el'?'Σύνολο Ψύξης':'Cooling Total'}:</b> ${fmtPower(coolTot)}</p><p><b>${currentLang==='el'?'Σύνολο Απωλειών':'Heat Losses Total'}:</b> ${fmtPower(heatTot)}</p><h3>${currentLang==='el'?'Συνολικό Αισθητό Ψύξης':'Total Cooling Sensible'}</h3>${breakdownTable(totalCoolSens, currentLang==='el'?'Αισθητά Ψύξης':'Cooling Sensible')}<h3>${currentLang==='el'?'Συνολικό Λανθάνον Ψύξης':'Total Cooling Latent'}</h3>${breakdownTable(totalCoolLat, currentLang==='el'?'Λανθάνοντα Ψύξης':'Cooling Latent')}<h3>${currentLang==='el'?'Συνολικό Αισθητό Απωλειών':'Total Heating Sensible'}</h3>${breakdownTable(totalHeatSens, currentLang==='el'?'Αισθητά Απωλειών':'Heating Sensible')}<div style="margin-top:10px">${pieSvg({...totalCoolSens, ...totalCoolLat}, currentLang==='el'?'Κατανομή Ψύξης Κτιρίου':'Building Cooling Distribution')}</div><div style="margin-top:10px">${pieSvg(totalHeatSens, currentLang==='el'?'Κατανομή Απωλειών Κτιρίου':'Building Heat-Loss Distribution')}</div></section>`;
 
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px;line-height:1.35}table{border-collapse:collapse;width:100%;margin-bottom:10px}td,th{border:1px solid #ccc;padding:8px;text-align:left}h1,h2,h3,h4{margin:0 0 8px}section{margin-bottom:16px}</style></head><body><h1>${title}</h1>${roomSections}${summaryPage}</body></html>`);
+    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px;line-height:1.35}table{border-collapse:collapse;width:100%;margin-bottom:10px}td,th{border:1px solid #ccc;padding:8px;text-align:left}h1,h2,h3,h4{margin:0 0 8px}section{margin-bottom:16px}</style></head><body><h1>${title}</h1><p><b>${currentLang==='el'?'Έργο/Μελέτη':'Project'}:</b> ${project}</p><p><b>${currentLang==='el'?'Ημερομηνία':'Date'}:</b> ${dateTxt}</p>${roomSections}${summaryPage}</body></html>`);
     winRef.document.close();
     winRef.focus();
     setTimeout(() => winRef.print(), 300);
@@ -1472,6 +1633,7 @@
   }
 
   function computeLoadsForMode(modeForced) {
+    enforceWallConsistency();
     let Tin = modeForced === "cool" ? 24 : 22;
     let RHin = modeForced === "cool" ? 45 : 40;
     let Tout = num("Tout", 36);
@@ -1647,6 +1809,64 @@
 
     update();
   }
+  function wallPerimeter() {
+    return Math.max(0, 2 * (num("L", 0) + num("W", 0)));
+  }
+
+  function enforceWallConsistency(changedId = "") {
+    const extEl = $("LwallExt");
+    const unhEl = $("LwallUnh");
+    if (!extEl || !unhEl) return;
+
+    let ext = Math.max(0, parseFloat(extEl.value) || 0);
+    let unh = Math.max(0, parseFloat(unhEl.value) || 0);
+    const perim = wallPerimeter();
+
+    if (changedId === "LwallExt") {
+      ext = Math.min(ext, perim);
+      unh = Math.min(unh, Math.max(0, perim - ext));
+    } else if (changedId === "LwallUnh") {
+      unh = Math.min(unh, perim);
+      ext = Math.min(ext, Math.max(0, perim - unh));
+    } else if (ext + unh > perim && ext + unh > 0) {
+      const f = perim / (ext + unh);
+      ext *= f;
+      unh *= f;
+    }
+
+    extEl.value = (Math.round(ext * 10) / 10).toString();
+    unhEl.value = (Math.round(unh * 10) / 10).toString();
+    updateWallHint();
+  }
+
+  function updateWallHint() {
+    const hint = $("wallPctHint");
+    if (!hint) return;
+    const perim = wallPerimeter();
+    const ext = Math.max(0, num("LwallExt", 0));
+    const unh = Math.max(0, num("LwallUnh", 0));
+    const sum = ext + unh;
+    const intLen = Math.max(0, perim - sum);
+    const pct = (x) => perim > 0 ? (100 * x / perim).toFixed(1) : "0.0";
+    const ok = sum <= perim + 0.001;
+    hint.innerHTML = `${tr("Walls", "Τοίχοι")} ${tr("split", "κατανομή")}: ${tr("External", "Εξωτερικοί")} ${pct(ext)}% | ${tr("Unconditioned", "Μη θερμαινόμενοι")}: ${pct(unh)}% | ${tr("Conditioned/internal", "Θερμαινόμενοι/εσωτερικοί")}: ${pct(intLen)}% <span class="${ok ? "ok" : "warnTxt"}">${ok ? "OK" : tr("auto-limited", "αυτόματος περιορισμός")}</span>`;
+  }
+
+  function bindWallConsistency() {
+    const ids = ["L", "W", "LwallExt", "LwallUnh"];
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      const fn = () => {
+        enforceWallConsistency(id === "LwallExt" || id === "LwallUnh" ? id : "");
+        renderLiveChecks();
+      };
+      el.addEventListener("input", fn);
+      el.addEventListener("change", fn);
+    });
+    enforceWallConsistency();
+  }
+
   function bindFloorHint() {
     const p = $("UfloorPreset");
     const c = $("UfloorCustom");
@@ -1739,7 +1959,11 @@
       <td><input class="wg-shade" type="number" step="0.1" value="${shade}"></td>
       <td><button class="ghost wg-del" type="button">x</button></td>
     `;
-    tr.querySelector(".wg-del")?.addEventListener("click", () => tr.remove());
+    tr.querySelector(".wg-del")?.addEventListener("click", () => { tr.remove(); setSelectedRoomDirty(true); renderLiveChecks(); });
+    tr.querySelectorAll("input,select").forEach((el) => {
+      el.addEventListener("input", () => { setSelectedRoomDirty(true); renderLiveChecks(); });
+      el.addEventListener("change", () => { setSelectedRoomDirty(true); renderLiveChecks(); });
+    });
     winTableBody?.appendChild(tr);
   }
 
@@ -1767,7 +1991,11 @@
       <td><input class="dv-duty" type="number" step="0.05" value="1"></td>
       <td><button class="ghost dv-del" type="button">x</button></td>
     `;
-    tr.querySelector(".dv-del")?.addEventListener("click", () => tr.remove());
+    tr.querySelector(".dv-del")?.addEventListener("click", () => { tr.remove(); setSelectedRoomDirty(true); renderLiveChecks(); });
+    tr.querySelectorAll("input").forEach((el) => {
+      el.addEventListener("input", () => setSelectedRoomDirty(true));
+      el.addEventListener("change", () => setSelectedRoomDirty(true));
+    });
     devTableBody?.appendChild(tr);
   }
 
@@ -1781,11 +2009,16 @@
     const keys = Object.keys(data);
     const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
 
+    const isMobile = window.innerWidth <= 768;
+    const cw = isMobile ? 560 : 760;
+    const ch = isMobile ? 520 : 420;
+    if (c.width !== cw) c.width = cw;
+    if (c.height !== ch) c.height = ch;
     ctx.clearRect(0, 0, c.width, c.height);
 
-    const cx = 180;
-    const cy = 210;
-    const r = 140;
+    const cx = isMobile ? 150 : 180;
+    const cy = isMobile ? 170 : 210;
+    const r = isMobile ? 110 : 140;
 
     let start = 0;
     keys.forEach((k, i) => {
@@ -1801,25 +2034,28 @@
       start += ang;
     });
 
-    ctx.font = "12px Segoe UI";
+    ctx.font = isMobile ? "14px Segoe UI" : "12px Segoe UI";
     ctx.fillStyle = "#eaf4ff";
 
     let y = 20;
-    const xl = 360;
+    const xl = isMobile ? 300 : 360;
     keys.forEach((k, i) => {
       const v = data[k];
       if (v < 1) return;
       const p = ((v / total) * 100).toFixed(1);
       const h = Math.floor((i / Math.max(1, keys.length)) * 300);
       ctx.fillStyle = `hsl(${h} 62% 52% / 0.92)`;
-      ctx.fillRect(xl, y - 10, 14, 14);
+      ctx.fillRect(xl, y - (isMobile ? 9 : 10), isMobile ? 12 : 14, isMobile ? 12 : 14);
       ctx.fillStyle = "#eaf4ff";
-      ctx.fillText(`${compName(k)} - ${p}%`, xl + 20, y);
-      y += 18;
+      const legendText = `${compName(k)} - ${p}%`;
+      const limit = isMobile ? 24 : 42;
+      ctx.fillText(legendText.length > limit ? `${legendText.slice(0, limit)}...` : legendText, xl + (isMobile ? 16 : 20), y);
+      y += isMobile ? 20 : 18;
     });
   }
 
   function calcLoad() {
+    enforceWallConsistency();
     const L = num("L", 0);
     const Wm = num("W", 0);
     const H = num("H", 0);
@@ -2070,6 +2306,7 @@
     };
 
     drawPie("pie", sensible, latent);
+    syncSelectedRoomAfterCalculation();
     renderAssumptions();
     renderLiveChecks();
     renderPsychroSummary();
@@ -2573,9 +2810,15 @@
 
     const roofSum = num("RoofPctExt", 100) + num("RoofPctUnh", 0) + num("RoofPctHeated", 0);
     const floorSum = num("FloorPctGround", 100) + num("FloorPctUnh", 0) + num("FloorPctHeated", 0);
+    const wallPerim = Math.max(0, 2 * (num("L", 0) + num("W", 0)));
+    const wallExt = Math.max(0, num("LwallExt", 0));
+    const wallUnh = Math.max(0, num("LwallUnh", 0));
+    const wallSum = wallExt + wallUnh;
 
     if (roofSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά οροφής ξεπερνούν το 100%.":"Roof percentages exceed 100%.");
     if (floorSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά δαπέδου ξεπερνούν το 100%.":"Floor percentages exceed 100%.");
+    if (wallSum > wallPerim + 0.01) lines.push(currentLang==="el"?"Τα μήκη τοίχων υπερβαίνουν το διαθέσιμο περίγραμμα χώρου.":"Wall lengths exceed the available room perimeter.");
+    if (wallExt < 0 || wallUnh < 0) lines.push(currentLang==="el"?"Τα μήκη τοίχων δεν μπορούν να είναι αρνητικά.":"Wall lengths cannot be negative.");
 
     const Aext = num("LwallExt", 0) * num("H", 0);
     let Awin = 0;
@@ -2589,6 +2832,7 @@
     if (mode === "heat" && Tin <= Tout) lines.push(currentLang==="el"?"Θέρμανση με Tin <= Tout. Έλεγξε τις εξωτερικές συνθήκες.":"Heating mode with Tin <= Tout. Check outdoor input.");
 
     if (str("MechMode", "ach") === "flow" && num("Qmech", 0) <= 0) lines.push(currentLang==="el"?"Η μηχανική λειτουργία είναι m3/h αλλά η παροχή είναι μηδενική.":"Mechanical mode is m3/h but airflow is zero.");
+    if (selectedRoomId && selectedRoomDirty) lines.push(currentLang==="el"?"Ο επιλεγμένος χώρος έχει αλλαγές. Πάτα Υπολογισμός για ενημέρωση κάρτας/συνόλων.":"Selected room has pending edits. Press Calculate to update card/totals.");
 
     if (lines.length === 0) {
       host.innerHTML = currentLang==="el" ? '<div class="good">Τα δεδομένα φαίνονται συνεπή.</div>' : '<div class="good">Inputs look consistent.</div>';
@@ -2624,12 +2868,15 @@
       calcLoad();
     });
 
-    $("addWinGrp")?.addEventListener("click", () => addWindowRow());
+    $("addWinGrp")?.addEventListener("click", () => { addWindowRow(); setSelectedRoomDirty(true); });
 
     $("addDev")?.addEventListener("click", () => {
       const idx = parseInt(devSel?.value || "0", 10);
       const d = devLibrary[idx] || devLibrary[0];
-      if (d) addDeviceRow(d);
+      if (d) {
+        addDeviceRow(d);
+        setSelectedRoomDirty(true);
+      }
     });
 
     $("addCustom")?.addEventListener("click", () => {
@@ -2638,6 +2885,7 @@
       const load = W * duty;
       if (load > 0) {
         addDeviceRow({ name: "Custom", W: load });
+        setSelectedRoomDirty(true);
       }
     });
 
@@ -2645,7 +2893,7 @@
     $("recalcQuick")?.addEventListener("click", calcLoad);
 
     $("addRoomBtn")?.addEventListener("click", addCurrentRoom);
-    $("clearRoomsBtn")?.addEventListener("click", () => { spaces = []; renderSpaces(); });
+    $("clearRoomsBtn")?.addEventListener("click", () => { spaces = []; clearSelectedRoomState(); renderSpaces(); });
     $("exportLoadPdfBtn")?.addEventListener("click", exportLoadsPdf);
     $("exportLoadDetailedPdfBtn")?.addEventListener("click", exportLoadsDetailedPdf);
     $("loadRoomBtn")?.addEventListener("click", loadSelectedRoom);
@@ -2679,6 +2927,7 @@
           return;
         }
 
+        markSelectedRoomDirty();
         renderAssumptions();
         renderLiveChecks();
       };
@@ -2740,6 +2989,7 @@
       bindPercentGroup(["RoofPctExt", "RoofPctUnh", "RoofPctHeated"], "roofPctHint", "Roof");
       bindPercentGroup(["FloorPctGround", "FloorPctUnh", "FloorPctHeated"], "floorPctHint", "Floor");
 
+      bindWallConsistency();
       bindFloorHint();
       initEvents();
       initData();
@@ -2777,6 +3027,22 @@
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
