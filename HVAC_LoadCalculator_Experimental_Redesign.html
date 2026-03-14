@@ -13,20 +13,21 @@
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HVAC Load Calculator - Experimental Redesign</title>
-    <style>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
     :root {
-      --bg-0: #0a0f17;
-      --bg-1: #0f1725;
-      --panel-1: #131d2d;
-      --panel-2: #0f1827;
-      --line: #24344e;
-      --text: #eaf2ff;
-      --muted: #9ab0cc;
-      --accent: #5cc8ff;
-      --accent-2: #5eead4;
+      --bg-0: #0c0e11;
+      --bg-1: #10141a;
+      --panel-1: #141a22;
+      --panel-2: #10151d;
+      --line: #252d37;
+      --text: #dbe7f1;
+      --muted: #6f8798;
+      --accent: #00c8a8;
+      --accent-2: #0095cc;
       --warn: #f59e0b;
       --ok: #34d399;
-      --kpi: #9de6ff;
+      --kpi: #39d6c2;
       --shadow: 0 14px 40px rgba(1, 5, 12, 0.45);
       --radius: 14px;
     }
@@ -46,7 +47,7 @@
 
     body.radical-ui {
       margin: 0;
-      font-family: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+      font-family: 'IBM Plex Sans', "Segoe UI", sans-serif;
       color: var(--text);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) 0 0 / 100% 36px,
@@ -90,6 +91,7 @@
       font-size: clamp(1rem, 1.35vw, 1.32rem);
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      font-family: 'IBM Plex Mono', monospace;
     }
 
     .hero p {
@@ -134,9 +136,11 @@
       color: #c7dbf7;
       border-radius: 10px;
       padding: 10px 14px;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
       min-height: 42px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.04em;
     }
 
     .tab-btn.active {
@@ -207,12 +211,13 @@
       font-size: 0.84rem;
       padding: 9px 10px;
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 500;
       min-height: 40px;
       display: flex;
       align-items: center;
       gap: 8px;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
+      font-family: 'IBM Plex Mono', monospace;
     }
 
     .module-btn::before {
@@ -285,9 +290,9 @@
     .section h2 {
       margin: 0 0 8px;
       font-size: 0.88rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #d4e6ff;
+      letter-spacing: 0.04em;
+      color: #a9f0de;
+      font-family: 'IBM Plex Mono', monospace;
     }
 
     .grid { display: grid; gap: 10px; }
@@ -301,10 +306,10 @@
       display: block;
       color: #bdd3f0;
       font-size: 0.73rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      letter-spacing: 0.04em;
       margin-bottom: 4px;
-      font-weight: 700;
+      font-weight: 500;
+      font-family: 'IBM Plex Mono', monospace;
     }
 
     .desc,
@@ -319,12 +324,14 @@
     input, select {
       width: 100%;
       min-height: 40px;
-      border-radius: 10px;
-      border: 1px solid #2f486d;
-      background: #0a1423;
-      color: #f0f6ff;
+      border-radius: 6px;
+      border: 1px solid #2b3745;
+      background: #0f141b;
+      color: #e6f0f8;
       padding: 9px 10px;
       outline: none;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
     }
 
     input:focus, select:focus {
@@ -335,14 +342,16 @@
     button {
       width: 100%;
       min-height: 40px;
-      border-radius: 10px;
-      border: 1px solid #3e5f8d;
-      background: #172944;
-      color: #d8ebff;
+      border-radius: 5px;
+      border: 1px solid #334152;
+      background: #151c26;
+      color: #cce1f4;
       padding: 9px 10px;
       cursor: pointer;
-      font-weight: 700;
-      letter-spacing: 0.03em;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
     }
 
     .primary {
@@ -350,6 +359,7 @@
       border: 0;
       background: linear-gradient(100deg, var(--accent), var(--accent-2));
       box-shadow: 0 6px 16px rgba(92, 200, 255, 0.35);
+      font-weight: 600;
     }
 
     .ghost {
@@ -610,6 +620,56 @@
     .term b { color: #ffe0ac; }
     .term p { margin: 2px 0 0; color: #c6d7ef; font-size: 0.8rem; }
 
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 58px;
+      border-top: 1px solid var(--line);
+      background: #121820;
+      z-index: 60;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-nav-inner {
+      display: flex;
+      min-width: max-content;
+      height: 100%;
+    }
+
+    .mob-nav-btn {
+      min-width: 84px;
+      border: none;
+      border-top: 2px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-height: 100%;
+    }
+
+    .mob-nav-btn .icon {
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .mob-nav-btn.active {
+      color: var(--accent);
+      border-top-color: var(--accent);
+    }
+
     @media (max-width: 1500px) {
       .radical-shell { grid-template-columns: 240px minmax(0, 1fr) 340px; }
       .psy-shell { grid-template-columns: minmax(0, 1fr) 360px; }
@@ -651,10 +711,11 @@
     @media (max-width: 768px) {
       body.radical-ui {
         padding: 8px;
+        padding-bottom: 66px;
       }
 
       .tabs {
-        grid-template-columns: 1fr;
+        display: none;
       }
 
       .tab-btn {
@@ -695,6 +756,10 @@
 
       .terms {
         grid-template-columns: 1fr;
+      }
+
+      .mobile-bottom-nav {
+        display: block;
       }
     }
   </style>
@@ -3131,6 +3196,7 @@
     navButtons.className = "module-nav";
 
     const panels = [];
+    let syncMobileNav = null;
 
     moduleDefs.forEach((def, i) => {
       const panel = document.createElement("div");
@@ -3158,6 +3224,7 @@
         Array.from(navButtons.querySelectorAll(".module-btn")).forEach((b) => b.classList.toggle("active", b === btn));
         panel.scrollIntoView({ behavior: "smooth", block: "start" });
         if (workStage) workStage.textContent = def.label;
+        if (syncMobileNav) syncMobileNav();
       });
       navButtons.appendChild(btn);
     });
@@ -3214,6 +3281,52 @@
 
     loadsPane.innerHTML = "";
     loadsPane.appendChild(shell);
+
+    const oldMob = $("mobileBottomNav");
+    if (oldMob) oldMob.remove();
+
+    const mob = document.createElement("div");
+    mob.id = "mobileBottomNav";
+    mob.className = "mobile-bottom-nav";
+    const mobInner = document.createElement("div");
+    mobInner.className = "mobile-nav-inner";
+
+    const addMobBtn = (icon, label, onClick) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "mob-nav-btn";
+      b.innerHTML = `<span class="icon">${icon}</span><span>${label}</span>`;
+      b.addEventListener("click", onClick);
+      mobInner.appendChild(b);
+      return b;
+    };
+
+    const mobLoads = addMobBtn("□", "ΦΟΡΤΙΑ", () => showLoadsPane());
+    const mobPsych = addMobBtn("Ψ", "ΨΥΧΡΟ", () => showPsychroPane());
+
+    const moduleButtons = Array.from(navButtons.querySelectorAll(".module-btn"));
+    const mobModuleBtns = moduleDefs.slice(0, 4).map((def, idx) =>
+      addMobBtn(String(idx + 1), `${idx + 1}`, () => {
+        showLoadsPane();
+        moduleButtons[idx]?.click();
+      })
+    );
+
+    syncMobileNav = () => {
+      const loadsVisible = $("loadsPane")?.style.display !== "none";
+      mobLoads.classList.toggle("active", loadsVisible);
+      mobPsych.classList.toggle("active", !loadsVisible);
+
+      const activeIdx = moduleButtons.findIndex((b) => b.classList.contains("active"));
+      mobModuleBtns.forEach((b, i) => b.classList.toggle("active", loadsVisible && i === activeIdx));
+    };
+
+    mob.appendChild(mobInner);
+    document.body.appendChild(mob);
+    syncMobileNav();
+
+    $("tabLoads")?.addEventListener("click", () => syncMobileNav());
+    $("tabPsychro")?.addEventListener("click", () => syncMobileNav());
   }
 
   function applyRadicalPsychroLayout() {
