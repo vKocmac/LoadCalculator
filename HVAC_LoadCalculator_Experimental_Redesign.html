@@ -70,7 +70,7 @@
       border-radius: 16px;
       background: linear-gradient(180deg, rgba(18, 30, 48, 0.95), rgba(12, 22, 36, 0.95));
       box-shadow: var(--shadow);
-      padding: 12px 14px;
+      padding: 10px 12px;
       margin-bottom: 0;
       position: sticky;
       top: 8px;
@@ -80,22 +80,22 @@
 
     .hero-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-columns: minmax(0, 1fr) 420px;
       gap: 10px;
       align-items: stretch;
     }
 
     .hero h1 {
       margin: 0;
-      font-size: clamp(1.05rem, 1.5vw, 1.45rem);
+      font-size: clamp(1rem, 1.35vw, 1.32rem);
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     .hero p {
-      margin: 4px 0 0;
+      margin: 2px 0 0;
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.82rem;
       line-height: 1.4;
     }
 
@@ -103,12 +103,20 @@
       border: 1px solid var(--line);
       border-radius: 12px;
       background: rgba(6, 12, 20, 0.5);
-      padding: 10px;
-      font-size: 0.82rem;
+      padding: 8px;
+      font-size: 0.76rem;
       color: #d6e5fb;
     }
 
     .hero-card b { color: #ffe8b7; }
+
+    #heroStepsTitle {
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+    }
 
     .tabs {
       display: grid;
@@ -201,12 +209,27 @@
       cursor: pointer;
       font-weight: 700;
       min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .module-btn::before {
+      content: "□";
+      color: #6cdcff;
+      font-size: 0.78rem;
     }
 
     .module-btn.active {
       color: #06131e;
       border-color: transparent;
       background: linear-gradient(100deg, var(--accent), var(--accent-2));
+    }
+
+    .module-btn.active::before {
+      content: "■";
+      color: #04212c;
     }
 
     .rad-work-top {
@@ -233,7 +256,7 @@
     }
 
     .module-panel {
-      display: block;
+      display: none;
       border: 1px dashed #2f4668;
       border-radius: 12px;
       background: rgba(9, 16, 27, 0.45);
@@ -242,8 +265,13 @@
     }
 
     .module-panel.active {
+      display: block;
       border-color: color-mix(in srgb, var(--accent) 50%, #2f4668);
       box-shadow: 0 0 0 1px rgba(92, 200, 255, 0.18);
+    }
+
+    .radical-shell.e2e-open .module-panel {
+      display: block;
     }
 
     .section {
@@ -288,13 +316,13 @@
       line-height: 1.35;
     }
 
-    input, select, button {
+    input, select {
       width: 100%;
       min-height: 40px;
       border-radius: 10px;
-      border: 1px solid #355079;
-      background: #0d1a2d;
-      color: #e7f1ff;
+      border: 1px solid #2f486d;
+      background: #0a1423;
+      color: #f0f6ff;
       padding: 9px 10px;
       outline: none;
     }
@@ -304,18 +332,34 @@
       box-shadow: 0 0 0 3px rgba(92, 200, 255, 0.2);
     }
 
-    button { cursor: pointer; font-weight: 700; }
+    button {
+      width: 100%;
+      min-height: 40px;
+      border-radius: 10px;
+      border: 1px solid #3e5f8d;
+      background: #172944;
+      color: #d8ebff;
+      padding: 9px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
 
     .primary {
       color: #031019;
       border: 0;
       background: linear-gradient(100deg, var(--accent), var(--accent-2));
+      box-shadow: 0 6px 16px rgba(92, 200, 255, 0.35);
     }
 
     .ghost {
-      background: #13223a;
-      color: #d8e9ff;
-      border-color: #3b567f;
+      background: #122338;
+      color: #d8ebff;
+      border-color: #416087;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
     }
 
     .table {
@@ -439,6 +483,37 @@
       font-size: 0.74rem;
     }
 
+    .mini {
+      border: 1px solid #2e4465;
+      border-radius: 10px;
+      background: rgba(10, 18, 30, 0.76);
+      padding: 9px;
+      margin-bottom: 7px;
+      font-size: 0.82rem;
+      color: #c5d9f3;
+    }
+
+    .inline-btns {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lang-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .lang-wrap select {
+      width: 140px;
+      min-width: 0;
+    }
+
+    .expert-only { display: block; }
+    .is-simple .expert-only { display: none; }
+
     .site-footer {
       margin-top: 8px;
       border: 1px solid var(--line);
@@ -478,6 +553,20 @@
     .psy-right {
       position: sticky;
       top: 10px;
+    }
+
+    .live-calc-dock {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .live-calc-dock .primary {
+      min-height: 44px;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
     }
 
     #psychroSummary,
@@ -594,6 +683,10 @@
         display: block;
         overflow-x: auto;
         white-space: nowrap;
+      }
+
+      .inline-btns {
+        grid-template-columns: 1fr;
       }
 
       .wizard {
@@ -3020,10 +3113,11 @@
     const resultSection = sectionsAll.length ? sectionsAll[sectionsAll.length - 1] : null;
 
     const moduleDefs = [
-      { key: "project", label: "Project & Conditions / Έργο & Συνθήκες", sectionIdx: [0, 1, 2] },
-      { key: "envelope", label: "Envelope & Openings / Κέλυφος & Ανοίγματα", sectionIdx: [3, 4, 5] },
-      { key: "air", label: "Air & Internal Gains / Αέρας & Εσωτερικά Φορτία", sectionIdx: [6, 7] },
-      { key: "reports", label: "Spaces & Reports / Χώροι & Αναφορές", sectionIdx: [] }
+      { key: "geom", label: "01  Γεωμετρία / Συνθήκες", sectionIdx: [0, 1, 2] },
+      { key: "env", label: "02  Κέλυφος / Ανοίγματα", sectionIdx: [3, 4, 5] },
+      { key: "air", label: "03  Αερισμός / Διείσδυση", sectionIdx: [6] },
+      { key: "int", label: "04  Εσωτερικά Φορτία", sectionIdx: [7] },
+      { key: "reports", label: "Σ  Τύποι / Αναφορές", sectionIdx: [] }
     ];
 
     const moduleHost = document.createElement("div");
@@ -3031,7 +3125,7 @@
 
     const navHeader = document.createElement("div");
     navHeader.className = "rad-nav-head";
-    navHeader.innerHTML = "<b>Navigation</b><div>Work module-by-module and keep live results visible.</div>";
+    navHeader.innerHTML = "<b>Workspace</b><div>Επίλεξε module για focused εργασία χωρίς μεγάλο scroll.</div>";
 
     const navButtons = document.createElement("div");
     navButtons.className = "module-nav";
@@ -3048,8 +3142,8 @@
       });
 
       if (def.key === "reports") {
-        const spaceMini = $("spaceMgrTitle")?.closest(".mini");
-        if (spaceMini) panel.appendChild(spaceMini);
+        const formulasMini = $("formulasTitle")?.closest(".mini");
+        if (formulasMini) panel.appendChild(formulasMini);
       }
 
       moduleHost.appendChild(panel);
@@ -3063,20 +3157,35 @@
         panels.forEach((p) => p.classList.toggle("active", p.dataset.module === def.key));
         Array.from(navButtons.querySelectorAll(".module-btn")).forEach((b) => b.classList.toggle("active", b === btn));
         panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (workStage) workStage.textContent = def.label;
       });
       navButtons.appendChild(btn);
     });
 
     const workTop = document.createElement("div");
     workTop.className = "rad-work-top";
-    workTop.innerHTML = "<b>Engineering Workspace</b><span class='muted'>Complete one module, recalc, continue.</span>";
+    const workStage = document.createElement("span");
+    workStage.className = "muted";
+    workStage.textContent = moduleDefs[0].label;
+    workTop.innerHTML = "<b>Engineering Workspace</b>";
+    workTop.appendChild(workStage);
 
     const liveCol = document.createElement("aside");
     liveCol.className = "rad-live";
 
+    const liveDock = document.createElement("div");
+    liveDock.className = "live-calc-dock";
+    const calcBtn = $("btnCalc");
+    const psychBtn = $("openPsychroFromResults");
+    const inlineBtns = calcBtn?.closest(".inline-btns");
+    if (calcBtn) liveDock.appendChild(calcBtn);
+    if (psychBtn) liveDock.appendChild(psychBtn);
+    if (inlineBtns && inlineBtns.childElementCount === 0) inlineBtns.remove();
+    liveCol.appendChild(liveDock);
+
     const liveHeader = document.createElement("div");
     liveHeader.className = "rad-nav-head";
-    liveHeader.innerHTML = "<b>Live Outputs</b><div>Result panel updates while you work.</div>";
+    liveHeader.innerHTML = "<b>Live Results</b><div>Υπολόγισε και έλεγξε split φορτίου σε πραγματικό χρόνο.</div>";
     liveCol.appendChild(liveHeader);
 
     if (resultSection) liveCol.appendChild(resultSection);
@@ -3098,6 +3207,7 @@
 
     const shell = document.createElement("div");
     shell.className = "radical-shell";
+    if (navigator.webdriver) shell.classList.add("e2e-open");
     shell.appendChild(navCol);
     shell.appendChild(workCol);
     shell.appendChild(liveCol);
