@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 
 HTML = Path(sys.argv[1]).resolve().as_uri()
 OUT = sys.argv[2]
+LEGACY = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "legacy_options.json"), encoding="utf-8"))
 OUT_IDS = ["result", "buildingTotals", "spacesTree", "liveChecks", "assumptionsList",
            "wallPctHint", "roofPctHint", "floorPctHint", "floorPresetHint",
            "psychroSummary", "psychroMix", "psychroRoomHint", "psychroInputHint"]
@@ -24,6 +25,11 @@ def snap(page, tag):
       document.querySelectorAll('input,select').forEach(e => { if (e.id) vals[e.id] = e.value; });
       o.__values = vals;
       o.__tables = ['winTable','devTable'].map(t => { const e = document.getElementById(t); return e ? e.querySelectorAll('tbody tr').length : null; });
+      o.__rows = (() => { const r = document.getElementById('result'); if (!r) return null;
+        const rows = []; const k = r.querySelector('.kpi-main');
+        if (k) rows.push(['__total', (k.querySelector('b') || k).textContent.trim()]);
+        r.querySelectorAll('.rowline').forEach(x => { const s = x.querySelectorAll('span'); if (s.length >= 2) rows.push([s[0].textContent.trim(), s[s.length - 1].textContent.trim()]); });
+        return rows; })();
       o.__pie = (() => { const c = document.getElementById('pie'); try { return c ? c.toDataURL().length + ':' + c.toDataURL().slice(-64) : null; } catch (e) { return 'err'; } })();
       return o;
     }""", OUT_IDS)
@@ -32,13 +38,15 @@ def snap(page, tag):
 
 
 def numeric_inputs(page):
-    return page.evaluate("""() => Array.from(document.querySelectorAll('#loadsPane input[type=number]'))
-      .filter(e => !e.disabled && e.id).map(e => e.id)""")
+    # legacy numeric fields only (fixed order), so new fields never change the scenarios
+    return [i for i in LEGACY["num"] if page.evaluate("(i) => { const e = document.getElementById(i); return !!e && !e.disabled; }", i)]
 
 
 def selects(page, scope):
-    return page.evaluate("""(scope) => Array.from(document.querySelectorAll(scope + ' select'))
-      .filter(e => e.id && !e.disabled).map(e => [e.id, Array.from(e.options).map(o => o.value)])""", scope)
+    # legacy selects with their legacy option values only
+    ids = [k for k in LEGACY["sel"] if (k.startswith("PS_") if scope == "#psychroPane" else not k.startswith("PS_"))]
+    return [[k, LEGACY["sel"][k]] for k in ids
+            if k not in ("Lang", "psRoomSelect", "Units") and page.evaluate("(i) => { const e = document.getElementById(i); return !!e && !e.disabled; }", k)]
 
 
 def setv(page, sel, val):
@@ -61,6 +69,7 @@ def run():
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(HTML)
         page.wait_for_timeout(300)
+        setv(page, "#Units", "kW")  # results compared in kW (W display was removed in v9)
         snaps.append(snap(page, "load"))
         click(page, "#btnCalc"); snaps.append(snap(page, "default_calc"))
 

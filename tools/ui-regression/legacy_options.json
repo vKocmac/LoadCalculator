@@ -1,0 +1,171 @@
+{
+"sel": {
+"Lang": [
+"el",
+"en"
+],
+"Mode": [
+"cool",
+"heat"
+],
+"Units": [
+"W",
+"kW"
+],
+"city": [
+"Athens|36|40",
+"Thessaloniki|35|50",
+"Patra|34|55",
+"Heraklion|33|60",
+"Custom"
+],
+"UwallPreset": [
+"1.80",
+"1.20",
+"1.00",
+"0.70",
+"0.45",
+"0.35",
+"0.25",
+"0.55",
+"0.38",
+"0.28",
+"0.22",
+"0.65",
+"0.48",
+"0.45",
+"0.90",
+"custom"
+],
+"UwinPreset": [
+"5.7",
+"2.8",
+"1.6",
+"1.3",
+"1.0",
+"0.9",
+"0.8",
+"1.9",
+"custom"
+],
+"SHGCpreset": [
+"0.86",
+"0.70",
+"0.55",
+"0.40",
+"0.30"
+],
+"UroofPreset": [
+"0.05",
+"1.00",
+"0.50",
+"0.35",
+"0.25",
+"0.20",
+"0.18",
+"2.40",
+"0.55",
+"0.38",
+"0.28",
+"0.22",
+"0.65",
+"0.48",
+"custom"
+],
+"UfloorPreset": [
+"p|1.50",
+"p|0.90",
+"p|0.50",
+"p|0.35",
+"p|0.25",
+"p|0.22",
+"g|1.20",
+"g|0.80",
+"g|0.50",
+"g|0.35",
+"g|0.25",
+"g|0.20",
+"g|0.30",
+"custom"
+],
+"ACHinf": [
+"0.3",
+"0.7",
+"1.2"
+],
+"ACHnat": [
+"0",
+"1",
+"3"
+],
+"MechMode": [
+"ach",
+"flow"
+],
+"PeopleActivity": [
+"75|55",
+"100|75",
+"130|95",
+"160|120"
+],
+"devLib": [
+"0",
+"1",
+"2",
+"3",
+"4",
+"5",
+"6",
+"7",
+"8",
+"9"
+],
+"psRoomSelect": [
+""
+],
+"PS_ViewMode": [
+"simple",
+"expert"
+],
+"PS_Mode": [
+"fixT",
+"fixRH"
+],
+"PS_SA_RH_mode": [
+"sat",
+"roomw",
+"manual"
+],
+"PS_CoilMode": [
+"off",
+"bf",
+"adp"
+]
+},
+"num": [
+"L",
+"W",
+"H",
+"Tin",
+"RHin",
+"Tout",
+"RHout",
+"LwallExt",
+"LwallUnh",
+"Tadj",
+"RoofPctExt",
+"RoofPctUnh",
+"Tattic",
+"RoofPctHeated",
+"FloorPctGround",
+"FloorPctUnh",
+"FloorPctHeated",
+"Tground",
+"ACHmech",
+"Qmech",
+"nPeople",
+"LightingWm2",
+"CustomW",
+"CustomDuty"
+]
+}
