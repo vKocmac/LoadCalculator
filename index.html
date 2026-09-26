@@ -927,6 +927,7 @@
               <option value="ahu">Through an AHU / Μέσω ΚΚΜ</option>
             </select>
           </div>
+          <div><label for="AhuName">Served by AHU (optional) / Εξυπηρετείται από ΚΚΜ (προαιρετικό)</label><input id="AhuName" type="text" placeholder="ΚΚΜ-1" list="ahuNames"><datalist id="ahuNames"></datalist></div>
         </div>
         <div class="desc">Mechanical ventilation is outdoor air. Through an AHU its load is not part of the room load; it is shown separately (fresh-air load for the AHU coil). / Ο μηχανικός αερισμός είναι νωπός αέρας. Μέσω ΚΚΜ το φορτίο του δεν μπαίνει στο φορτίο του χώρου· εμφανίζεται ξεχωριστά (φορτίο νωπού για το στοιχείο της ΚΚΜ).</div>
       </div>
@@ -1201,7 +1202,7 @@
     "UwinPreset","UwinCustom","SHGCpreset",
     "UroofPreset","UroofCustom","RoofPctExt","RoofPctUnh","RoofPctHeated","Tattic",
     "UfloorPreset","UfloorCustom","FloorPctGround","FloorPctUnh","FloorPctHeated","Tground",
-    "ACHinf","ACHnat","InfSource","MechMode","ACHmech","Qmech","OaMode",
+    "ACHinf","ACHnat","InfSource","MechMode","ACHmech","Qmech","OaMode","AhuName",
     "nPeople","PeopleActivity","LightingWm2","EquipWm2",
     "PS_ViewMode","PS_Mode","PS_Tsa","PS_SA_RH_mode","PS_RHsa","PS_SA_manual","PS_Pressurization","PS_CoilMode","PS_BF","PS_ADP","PS_LWT",
     "CS_EWT","CS_LWT","CS_Vface","CS_Fin","CS_Tube"
@@ -1868,7 +1869,7 @@
       const badges = [];
       if (isSelected) badges.push(`<span class="badge sel">${tr("selected", "επιλεγμένο")}</span>`);
       if (isDirty) badges.push(`<span class="badge dirty">${tr("modified", "τροποποιημένο")}</span>`);
-      return `<div class="${cls}" onclick="window.__selectSpace('${s.id}')"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtSeason(s, "cool", cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtSeason(s, "heat", heat)}</div><div class="meta">${seasonSrc(s, "cool") === "none" ? "Qs · Ql: —" : `Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}`}</div>${s.coolOA ? `<div class="meta">${tr("Fresh air (AHU)", "Νωπός (ΚΚΜ)")}: ${fmtPower(s.coolOA.T)}</div>` : ""}${badges.length ? `<div class="space-badges">${badges.join("")}</div>` : ""}<div style="margin-top:6px"><button class="ghost" type="button" onclick="event.stopPropagation(); window.__removeSpace('${s.id}')">x</button></div></div>`;
+      return `<div class="${cls}" onclick="window.__selectSpace('${s.id}')"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtSeason(s, "cool", cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtSeason(s, "heat", heat)}</div><div class="meta">${seasonSrc(s, "cool") === "none" ? "Qs · Ql: —" : `Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}`}</div>${s.coolOA ? `<div class="meta">${tr("Fresh air (AHU)", "Νωπός (ΚΚΜ)")}: ${fmtPower(s.coolOA.T)}</div>` : ""}${ahuOf(s) ? `<div class="meta">${tr("AHU", "ΚΚΜ")}: ${esc(ahuOf(s))}</div>` : ""}${badges.length ? `<div class="space-badges">${badges.join("")}</div>` : ""}<div style="margin-top:6px"><button class="ghost" type="button" onclick="event.stopPropagation(); window.__removeSpace('${s.id}')">x</button></div></div>`;
     }).join("");
 
     const coolTot = spaces.reduce((a, s) => a + spaceCoolTotal(s), 0);
@@ -1887,15 +1888,44 @@
     refreshRoomSelect();
   }
 
+  // ---------- AHU groups (rooms with the same "Served by AHU" name) ----------
+  let psychroTarget = null; // null = current inputs / room; { ahu: "name" } = sum of that AHU's rooms
+  const ahuOf = (r) => String(r?.inputs?.AhuName || "").trim();
+  function ahuGroups() {
+    const g = new Map();
+    spaces.forEach((r) => { const a = ahuOf(r); if (!a) return; if (!g.has(a)) g.set(a, []); g.get(a).push(r); });
+    return g;
+  }
+  function ahuTotals(name) {
+    const rooms = ahuGroups().get(name) || [];
+    const ok = rooms.filter((r) => seasonSrc(r, "cool") !== "none");
+    const qs = ok.reduce((a, r) => a + spaceCoolQs(r), 0);
+    const ql = ok.reduce((a, r) => a + spaceCoolQl(r), 0);
+    const oaVh = ok.reduce((a, r) => a + (r.coolOA?.Vh || 0), 0);
+    const oaT = ok.reduce((a, r) => a + (r.coolOA?.T || 0), 0);
+    const first = ok[0]?.inputs || {};
+    const differ = ok.some((r) => r.inputs.Tin !== first.Tin || r.inputs.RHin !== first.RHin || r.inputs.Tout !== first.Tout || r.inputs.RHout !== first.RHout);
+    return { name, rooms, ok, missing: rooms.filter((r) => !ok.includes(r)), qs, ql, oaVh, oaT, first, differ };
+  }
+
   function refreshRoomSelect() {
     const sel = $("psRoomSelect");
     if (!sel) return;
     const first = currentLang === "el" ? "Τρέχοντα δεδομένα" : "Current inputs";
+    const groups = ahuGroups();
     const opts = [`<option value="">${first}</option>`].concat(
-      spaces.map((s) => `<option value="${s.id}">${s.name}</option>`)
+      spaces.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`)
     );
+    if (groups.size) {
+      opts.push(`<optgroup label="${tr("AHU coil (sum of its rooms)", "Στοιχείο ΚΚΜ (άθροισμα χώρων)")}">`);
+      groups.forEach((rooms, name) => opts.push(`<option value="ahu:${esc(name)}">${esc(name)} (${rooms.length} ${tr("rooms", "χώροι")})</option>`));
+      opts.push("</optgroup>");
+    }
     sel.innerHTML = opts.join("");
-    if (selectedRoomId) sel.value = selectedRoomId;
+    if (psychroTarget) sel.value = `ahu:${psychroTarget.ahu}`;
+    else if (selectedRoomId) sel.value = selectedRoomId;
+    const dl = $("ahuNames");
+    if (dl) dl.innerHTML = Array.from(groups.keys()).map((n) => `<option value="${esc(n)}"></option>`).join("");
   }
 
   window.__removeSpace = (id) => {
@@ -1910,6 +1940,7 @@
     selectedRoomId = id;
     selectedRoomDirty = false;
     selectedRoomLoadedSignature = JSON.stringify(room.inputs || {});
+    psychroTarget = null;
     if ($("psRoomSelect")) $("psRoomSelect").value = id;
     applyInputSnapshot(room.inputs);
     const hint = $("psychroRoomHint");
@@ -2016,6 +2047,8 @@
 
   function loadSelectedRoom() {
     const id = str("psRoomSelect", "");
+    if (id.startsWith("ahu:")) { psychroTarget = { ahu: id.slice(4) }; calcPsychro(); return; }
+    psychroTarget = null;
     if (!id) {
       clearSelectedRoomState();
       renderSpaces();
@@ -2141,7 +2174,20 @@
     const table = `<table><thead><tr><th>#</th><th>${tr("Room", "Χώρος")}</th><th class="r">m²</th><th class="r">${tr("Cooling", "Ψύξη")}</th><th class="r">Qs</th><th class="r">Ql</th><th class="r">SHR</th><th class="r">W/m²</th><th class="r">${tr("Fresh air AHU", "Νωπός ΚΚΜ")}</th><th class="r">${tr("Heating", "Θέρμανση")}</th><th class="r">W/m²</th></tr></thead>
       <tbody>${rows}<tr class="tot"><td></td><td>${tr("Total", "Σύνολο")}</td><td class="r num">${A.toFixed(1)}</td><td class="r num">${fmtPower(cool)}</td><td class="r num">${fmtPower(qs)}</td><td class="r num">${fmtPower(ql)}</td><td class="r num">${cool > 0 ? (qs / cool).toFixed(2) : "—"}</td><td class="r num">${A > 0 ? Math.round(cool / A) : "—"}</td><td class="r num">${oaC > 0 ? fmtPower(oaC) : "—"}</td><td class="r num">${fmtPower(heat)}</td><td class="r num">${A > 0 ? Math.round(heat / A) : "—"}</td></tr></tbody></table>`;
     const foot = none ? `<div class="note">— ${tr("Not calculated for that season; not included in the totals.", "Δεν έχει υπολογιστεί για εκείνη την εποχή· δεν περιλαμβάνεται στα σύνολα.")}</div>` : "";
-    return kpis + `<h2>${tr("Rooms", "Χώροι")}</h2>` + table + foot;
+    let ahuTbl = "";
+    const groups = new Map();
+    rooms.forEach((r) => { const a = ahuOf(r); if (!a) return; if (!groups.has(a)) groups.set(a, []); groups.get(a).push(r); });
+    if (groups.size) {
+      const rowsA = Array.from(groups.entries()).map(([name, rs]) => {
+        const ok = rs.filter((r) => seasonSrc(r, "cool") !== "none");
+        const qs = ok.reduce((a, r) => a + spaceCoolQs(r), 0), ql = ok.reduce((a, r) => a + spaceCoolQl(r), 0);
+        const oa = ok.reduce((a, r) => a + (r.coolOA?.T || 0), 0), oaV = ok.reduce((a, r) => a + (r.coolOA?.Vh || 0), 0);
+        return `<tr><td>${esc(name)}</td><td>${rs.map((r) => esc(r.name)).join(", ")}</td><td class="r num">${fmtPower(qs + ql)}</td><td class="r num">${oaV.toFixed(0)}</td><td class="r num">${fmtPower(oa)}</td><td class="r num">${fmtPower(qs + ql + oa)}</td></tr>`;
+      }).join("");
+      ahuTbl = `<h2>${tr("By AHU", "Ανά ΚΚΜ")}</h2><table><thead><tr><th>${tr("AHU", "ΚΚΜ")}</th><th>${tr("Rooms", "Χώροι")}</th><th class="r">${tr("Rooms cooling", "Ψύξη χώρων")}</th><th class="r">${tr("Fresh air m³/h", "Νωπός m³/h")}</th><th class="r">${tr("Fresh-air load", "Φορτίο νωπού")}</th><th class="r">${tr("Coil (approx.)", "Στοιχείο (περίπου)")}</th></tr></thead><tbody>${rowsA}</tbody></table>
+        <div class="note">${tr("Coil ≈ rooms + fresh air (peak loads summed without diversity). Exact coil: coil sheet in the psychrometrics tab.", "Στοιχείο ≈ χώροι + νωπός (άθροισμα αιχμών χωρίς ταυτοχρονισμό). Ακριβές στοιχείο: φύλλο στοιχείου στην ψυχρομετρία.")}</div>`;
+    }
+    return kpis + `<h2>${tr("Rooms", "Χώροι")}</h2>` + table + foot + ahuTbl;
   }
 
   function methodNote() {
@@ -2257,6 +2303,7 @@
     sec(tr("Ventilation", "Αερισμός"));
     row(tr("Infiltration · natural", "Διείσδυση · φυσικός"), `${optLabel("ACHinf", d.ACHinf)} · ${optLabel("ACHnat", d.ACHnat)}`);
     row(tr("Infiltration air from", "Αέρας διείσδυσης από"), optLabel("InfSource", d.InfSource || "out"));
+    if ((d.AhuName || "").trim()) row(tr("Served by AHU", "Εξυπηρετείται από ΚΚΜ"), d.AhuName.trim());
     row(tr("Mechanical (outdoor air)", "Μηχανικός (νωπός αέρας)"), `${d.MechMode === "flow" ? `${fnum(d.Qmech, 0)} m³/h` : `${fnum(d.ACHmech, 1)} ACH`} · ${optLabel("OaMode", d.OaMode || "direct")}`);
     sec(tr("Internal gains", "Εσωτερικά φορτία"));
     row(tr("People", "Άτομα"), `${fnum(d.nPeople, 0)} × ${optLabel("PeopleActivity", d.PeopleActivity)}`);
@@ -3100,6 +3147,13 @@
     `;
   }
   function roomDataForPsychro() {
+    if (psychroTarget && ahuGroups().has(psychroTarget.ahu)) {
+      const t = ahuTotals(psychroTarget.ahu);
+      const f = t.first;
+      const n = (x, d) => { const v = parseFloat(x); return Number.isFinite(v) ? v : d; };
+      return { mode: "cool", Tin: n(f.Tin, 24), RHin: n(f.RHin, 45), Tout: n(f.Tout, 36), RHout: n(f.RHout, 40), Voa: t.oaVh / 3600, qs: t.ok.length ? t.qs : NaN, ql: t.ql, ahu: t };
+    }
+    if (psychroTarget) psychroTarget = null;
     const mode = str("Mode", "cool");
     const Tin = num("Tin", 24);
     const RHin = num("RHin", 45);
@@ -3118,7 +3172,7 @@
     const qs = parseFloat($("sumQsVal")?.getAttribute("data-w") || "NaN");
     const ql = parseFloat($("sumQlVal")?.getAttribute("data-w") || "NaN");
 
-    return { mode, Tin, RHin, Tout, RHout, Voa, qs, ql };
+    return { mode, Tin, RHin, Tout, RHout, Voa, qs, ql, ahu: null };
   }
 
   function bisect(fn, lo, hi, tol = 1e-4, maxIter = 60) {
@@ -3362,6 +3416,9 @@
           <div>${tr("SA = OA + Recirc", "SA = OA + Ανακυκλοφορία")}</div>
         </div>
       </div>
+      ${R.ahu ? `<div class="good">${tr("AHU coil", "Στοιχείο ΚΚΜ")} «${esc(R.ahu.name)}»: ${R.ahu.ok.map((r) => esc(r.name)).join(", ")} — Qs ${fmtPower(R.ahu.qs)} · Ql ${fmtPower(R.ahu.ql)} · ${tr("fresh air", "νωπός")} ${R.ahu.oaVh.toFixed(0)} m³/h</div>` : ""}
+      ${R.ahu && R.ahu.missing.length ? `<div class="warn">${tr("Not calculated in cooling, left out", "Δεν έχουν υπολογιστεί σε ψύξη, εξαιρέθηκαν")}: ${R.ahu.missing.map((r) => esc(r.name)).join(", ")}</div>` : ""}
+      ${R.ahu && R.ahu.differ ? `<div class="warn">${tr("The rooms of this AHU have different design conditions; the first room's are used.", "Οι χώροι της ΚΚΜ έχουν διαφορετικές συνθήκες σχεδιασμού· χρησιμοποιούνται του πρώτου χώρου.")}</div>` : ""}
       ${note}
       ${oaNote}
       ${lwtNote}
@@ -3486,7 +3543,8 @@
     const title = tr("Coil specification sheet", "Φύλλο προδιαγραφής στοιχείου");
     const id = str("psRoomSelect", "");
     const room = id ? spaces.find((x) => x.id === id) : null;
-    openReport(title, reportHeader(title) + `<h2>${tr("Room", "Χώρος")}: ${esc(room ? room.name : tr("Current", "Τρέχων"))}</h2>` + coilSheetHtml(lastCoil, true)
+    const who = psychroTarget ? `${tr("AHU", "ΚΚΜ")}: ${esc(psychroTarget.ahu)} (${(ahuTotals(psychroTarget.ahu).ok.map((r) => esc(r.name)).join(", "))})` : `${tr("Room", "Χώρος")}: ${esc(room ? room.name : tr("Current", "Τρέχων"))}`;
+    openReport(title, reportHeader(title) + `<h2>${who}</h2>` + coilSheetHtml(lastCoil, true)
       + `<style>.lc-cs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}.lc-intable td.r{white-space:normal;text-align:right}.lc-intable{width:100%;border-collapse:collapse}.lc-intable td{padding:4px 6px;border-bottom:1px solid #E1E6EC}.good{background:#E6F4EA;padding:8px;border-radius:6px}.warn{background:#FFF6E5;padding:8px;border-radius:6px;margin:6px 0}.lc-foot{font-size:8.5pt;color:#4A5A6C;margin-top:10px}</style>`);
   }
 
@@ -3734,6 +3792,7 @@
     $("exportLoadPdfBtn")?.addEventListener("click", exportLoadsPdf);
     $("exportLoadDetailedPdfBtn")?.addEventListener("click", exportLoadsDetailedPdf);
     $("loadRoomBtn")?.addEventListener("click", loadSelectedRoom);
+    $("psRoomSelect")?.addEventListener("change", () => { if (str("psRoomSelect", "").startsWith("ahu:")) loadSelectedRoom(); });
     $("exportPsychroPdfBtn")?.addEventListener("click", exportPsychroPdf);
 
     ["CS_EWT", "CS_LWT", "CS_Vface", "CS_Fin", "CS_Tube"].forEach((id) => $(id)?.addEventListener("change", () => calcPsychro()));

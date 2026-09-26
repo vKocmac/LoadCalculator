@@ -284,9 +284,25 @@ with sync_playwright() as p:
     check("coil sheet: saturated supply flagged as not achievable", "ΜΗ εφικτό" in sheet, sheet[:120].replace("\n", " | "))
     click(page, "#closePsychro")
 
+    # 15. AHU grouping: coil for the sum of the AHU's rooms
+    base_room(page); setv(page, "#Units", "kW"); setv(page, "#OaMode", "ahu"); setv(page, "#Qmech", 100); setv(page, "#AhuName", "ΚΚΜ-1"); click(page, "#btnCalc")
+    setv(page, "#roomName", "AHU room 1"); click(page, "#addRoomBtn")
+    setv(page, "#nPeople", 4); click(page, "#btnCalc")
+    setv(page, "#roomName", "AHU room 2"); click(page, "#addRoomBtn")
+    qs_sum = page.evaluate("""() => Array.from(document.querySelectorAll('#spacesTree .space-row')).filter(r => r.innerText.includes('ΚΚΜ: ΚΚΜ-1'))
+      .map(r => parseFloat((r.innerText.match(/Qs=([\\d.]+) kW/) || [0, 0])[1])).reduce((a, b) => a + b, 0)""")
+    click(page, "#tabPsychro"); page.wait_for_timeout(200)
+    has = page.evaluate("() => Array.from(document.getElementById('psRoomSelect').options).some(o => o.value === 'ahu:ΚΚΜ-1')")
+    setv(page, "#psRoomSelect", "ahu:ΚΚΜ-1"); page.wait_for_timeout(300)
+    mix = page.evaluate("() => document.getElementById('psychroMix').innerText")
+    m = re.search(r"Qs ([\d.]+) kW", mix)
+    n_rooms = page.evaluate("() => Array.from(document.querySelectorAll('#spacesTree .space-row')).filter(r => r.innerText.includes('ΚΚΜ: ΚΚΜ-1')).length")
+    check("AHU group: coil option, summed room sensible and fresh air", has and m and abs(float(m.group(1)) - qs_sum) < 0.02 and f"νωπός {n_rooms * 100} m³/h" in mix, f"{m.group(1) if m else None} vs {qs_sum:.2f}; {has}; " + mix[:300].replace("\n", " | "))
+    click(page, "#closePsychro")
+
     # 13. Greek everywhere in the loads form
     allowed = set("""U SHGC ACH RH CAD LED PVC PU PIR XPS EPS ETICS CNC UPS POS IT kW BTU h W m Qs Ql SHR TV PC D LED T8 low-e low Ytong sandwich
-      rack Switch switch Plotter espresso high-bay kVA inverter P η kg A B N S E NE NW SE SW Β Α Ν Δ ΒΑ ΒΔ ΝΑ ΝΔ g p x ASHRAE Fundamentals Argon POS PDF Rack Ug Uw cm mm laser PU""".split())
+      rack Switch switch Plotter espresso high-bay kVA inverter P η kg A B N S E NE NW SE SW Β Α Ν Δ ΒΑ ΒΔ ΝΑ ΝΔ g p x ASHRAE Fundamentals Argon POS PDF Rack Ug Uw cm mm laser PU AHU""".split())
     texts = page.evaluate("""() => Array.from(document.querySelectorAll('#loadsMain label, #loadsMain h2, #loadsMain th, #loadsMain button, #loadsMain option, #loadsMain optgroup, #loadsMain .desc, .side h3, .side summary, .side button, .side label, #tabsBar button'))
       .map(e => e.tagName === 'OPTGROUP' ? e.label : e.textContent)""")
     leftovers = set()
