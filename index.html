@@ -303,6 +303,10 @@
     .lc-foot { margin-top: 6px; font-size: 0.76rem; color: var(--muted); }
     .kpi-sub { font-size: 0.8rem; color: var(--accent-ink); font-family: var(--mono); }
 
+    .lc-unused { opacity: 0.45; }
+    .lc-unused label::after { content: " — δεν μετράει"; font-weight: 400; color: var(--muted); }
+    html[lang="en"] .lc-unused label::after { content: " — not used"; }
+
     /* geometry input method */
     body[data-geo="area"] .geo-dims, body:not([data-geo="area"]) .geo-area { display: none; }
 
@@ -717,7 +721,7 @@
           <div><button id="exportLoadDetailedPdfBtn" class="ghost" type="button">Export Detailed PDF</button></div>
         </div>
         <div class="grid cols-2" style="margin-bottom:8px">
-          <div><button id="lcSaveProj" class="primary" type="button">Save project file / Αποθήκευση έργου</button></div>
+          <div><button id="lcSaveProj" class="primary" type="button">Save project file / Αποθήκευση αρχείου έργου</button></div>
           <div><button id="lcOpenProj" class="ghost" type="button">Open project file / Άνοιγμα έργου</button></div>
         </div>
         <input id="lcOpenFile" type="file" accept=".html,.htm,.json,application/json,text/html" hidden>
@@ -930,11 +934,11 @@
 
         <div class="grid cols-3" style="margin-top:8px">
           <div>
-            <label for="MechMode">Mechanical ventilation input / Μηχανικός αερισμός ως</label>
+            <label for="MechMode">Mechanical ventilation given as / Ο μηχανικός αερισμός δίνεται σε</label>
             <select id="MechMode"></select>
           </div>
-          <div><label for="ACHmech">Mechanical ACH [1/h] / Μηχανικός αερισμός ACH [1/h]</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
-          <div><label for="Qmech">Mechanical airflow [m³/h] / Παροχή μηχανικού αερισμού [m³/h]</label><input id="Qmech" type="number" step="10" value="0"></div>
+          <div id="wrapACHmech"><label for="ACHmech">Mechanical ACH [1/h] / Μηχανικός αερισμός ACH [1/h]</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
+          <div id="wrapQmech"><label for="Qmech">Mechanical airflow [m³/h] / Παροχή μηχανικού αερισμού [m³/h]</label><input id="Qmech" type="number" step="10" value="0"></div>
         </div>
         <div class="grid cols-3" style="margin-top:8px">
           <div>
@@ -1027,14 +1031,7 @@
       <div class="grid cols-3">
         <div><label for="PS_Tsa">Supply air temperature [°C] / Θερμοκρασία προσαγωγής [°C]</label><input id="PS_Tsa" type="number" step="0.1" value="14"><div class="desc">Typical 12–16 °C. Lower = less air, more dehumidification. / Συνήθως 12–16 °C. Χαμηλότερη = λιγότερος αέρας, περισσότερη αφύγρανση.</div></div>
         <div><label for="PS_RHsa">Supply air RH [%] / Σχετική υγρασία προσαγωγής [%]</label><input id="PS_RHsa" type="number" step="1" value="90"><div class="desc">Air leaving a chilled-water coil: 85–95 %. / Αέρας μετά από στοιχείο νερού: 85–95 %.</div></div>
-        <div>
-          <label for="PS_OaThrough">Fresh air goes through this coil? / Ο νωπός περνά από αυτό το στοιχείο;</label>
-          <select id="PS_OaThrough">
-            <option value="direct">No — directly to the room / Όχι — απευθείας στον χώρο</option>
-            <option value="ahu">Yes — through the unit (AHU) / Ναι — μέσω της μονάδας (ΚΚΜ)</option>
-          </select>
-          <div class="desc">Same as "Fresh air is delivered" in Loads. / Ίδιο με το «Ο νωπός αέρας προσάγεται» στα Φορτία.</div>
-        </div>
+
       </div>
       <div class="grid cols-3" style="margin-top:8px">
         <div><label for="CS_EWT">Chilled water in [°C] / Νερό είσοδος [°C]</label><input id="CS_EWT" type="number" step="0.5" value="7"></div>
@@ -1518,10 +1515,6 @@
       { v: "1", en: "Tilt-open (~1)", el: "Ανακλινόμενο (~1)" },
       { v: "3", en: "Open windows (~3)", el: "Ανοιχτά παράθυρα (~3)" }
     ],
-    PS_OaThrough: [
-      { v: "direct", en: "No — directly to the room", el: "Όχι — απευθείας στον χώρο" },
-      { v: "ahu", en: "Yes — through the unit (AHU)", el: "Ναι — μέσω της μονάδας (ΚΚΜ)" }
-    ],
     OaMode: [
       { v: "direct", en: "Directly to the room", el: "Απευθείας στον χώρο" },
       { v: "ahu", en: "Through an AHU (separate fresh-air load)", el: "Μέσω ΚΚΜ (ξεχωριστό φορτίο νωπού)" }
@@ -1531,8 +1524,8 @@
       { v: "adj", en: "Unconditioned space (its temperature, outdoor humidity)", el: "Μη κλιματιζόμενο χώρο (η θερμοκρασία του, υγρασία εξωτερικού)" }
     ],
     MechMode: [
-      { v: "ach", en: "Use ACH", el: "Με ACH" },
-      { v: "flow", en: "Use m3/h", el: "Με m3/h" }
+      { v: "ach", en: "Air changes per hour (ACH)", el: "Αλλαγές αέρα ανά ώρα (ACH)" },
+      { v: "flow", en: "Airflow (m³/h)", el: "Παροχή (m³/h)" }
     ],
     PeopleActivity: [
       { group: { en: "General", el: "Γενικά" } },
@@ -1703,6 +1696,7 @@
 
   function applyLanguage() {
     const d = I18N[currentLang] || I18N.el;
+    document.documentElement.lang = currentLang;
     setTxt("heroSubtitle", d.heroSubtitle);
     setTxt("heroStepsTitle", d.heroStepsTitle);
     setTxt("heroStep1", d.heroStep1);
@@ -1895,9 +1889,10 @@
   function ahuTotals(name) {
     const rooms = ahuGroups().get(name) || [];
     const ok = rooms.filter((r) => seasonSrc(r, "cool") !== "none");
-    const qs = ok.reduce((a, r) => a + spaceCoolQs(r), 0);
-    const ql = ok.reduce((a, r) => a + spaceCoolQl(r), 0);
-    const oaVh = ok.reduce((a, r) => a + (r.coolOA?.Vh || 0), 0);
+    const inRoom = (r, k) => (r.coolMech && r.coolMech.inRoom ? r.coolMech[k] || 0 : 0);
+    const qs = ok.reduce((a, r) => a + spaceCoolQs(r) - inRoom(r, "S"), 0);
+    const ql = ok.reduce((a, r) => a + Math.max(0, spaceCoolQl(r) - inRoom(r, "L")), 0);
+    const oaVh = ok.reduce((a, r) => a + (r.coolMech?.Vh ?? r.coolOA?.Vh ?? 0), 0);
     const oaT = ok.reduce((a, r) => a + (r.coolOA?.T || 0), 0);
     const first = ok[0]?.inputs || {};
     const differ = ok.some((r) => r.inputs.Tin !== first.Tin || r.inputs.RHin !== first.RHin || r.inputs.Tout !== first.Tout || r.inputs.RHout !== first.RHout);
@@ -1952,7 +1947,8 @@
       Ql: Number(calc.Ql) || 0,
       sensible: { ...(calc.sensible || {}) },
       latent: { ...(calc.latent || {}) },
-      oa: calc.oa || null
+      oa: calc.oa || null,
+      mech: calc.mech || null
     };
   }
 
@@ -1981,7 +1977,7 @@
     const EMPTY = { Qt: 0, Qs: 0, Ql: 0, sensible: {}, latent: {}, oa: null };
     const fromPrev = (season) => ({
       Qt: prev[`${season}W`], Qs: prev[`${season}QsW`], Ql: prev[`${season}QlW`],
-      sensible: { ...(prev[`${season}Sensible`] || {}) }, latent: { ...(prev[`${season}Latent`] || {}) }, oa: prev[`${season}OA`] || null
+      sensible: { ...(prev[`${season}Sensible`] || {}) }, latent: { ...(prev[`${season}Latent`] || {}) }, oa: prev[`${season}OA`] || null, mech: prev[`${season}Mech`] || null
     });
     let coolData = modeNow === "cool" ? computeLoadsForMode("cool") : (keepOther ? fromPrev("cool") : EMPTY);
     let heatData = modeNow === "heat" ? computeLoadsForMode("heat") : (keepOther ? fromPrev("heat") : EMPTY);
@@ -2011,6 +2007,8 @@
       coolSig: modeNow === "cool" ? sigNow : (keepOther ? prev.coolSig : null),
       heatSig: modeNow === "heat" ? sigNow : (keepOther ? prev.heatSig : null),
       coolOA: coolData.oa || null,
+      coolMech: coolData.mech || null,
+      heatMech: heatData.mech || null,
       heatOA: heatData.oa || null,
       inputs: inputsNow,
       assumptions: [...(lastCalc?.assumptions || [])],
@@ -2048,6 +2046,7 @@
     if (!id) {
       clearSelectedRoomState();
       renderSpaces();
+      calcPsychro();
       return;
     }
     window.__selectSpace(id);
@@ -2461,7 +2460,9 @@
 
     // Ventilation
     const ACHinf = num("ACHinf", 0), ACHnat = num("ACHnat", 0), mechMode = str("MechMode", "ach");
-    let ACHmech = 0; const Qmech = num("Qmech", 0) / 3600; if (mechMode === "ach") ACHmech = num("ACHmech", 0);
+    // only the selected input method counts (before v12 the m³/h field was also added in ACH mode)
+    const ACHmech = mechMode === "ach" ? num("ACHmech", 0) : 0;
+    const Qmech = mechMode === "flow" ? num("Qmech", 0) / 3600 : 0;
     const win = wTRH(Tin, RHin), wout = wTRH(Tout, RHout), hin = hTw(Tin, win), hout = hTw(Tout, wout), dTv = Math.abs(Tout - Tin);
     const infFromAdj = str("InfSource", "out") === "adj";
     const oaViaAhu = str("OaMode", "direct") === "ahu";
@@ -2545,12 +2546,14 @@
     const Qs = Object.values(sensible).reduce((x, y) => x + y, 0);
     const Ql = Object.values(latent).reduce((x, y) => x + y, 0);
     const oa = oaViaAhu ? { Vh: VdotM * 3600, S: QmechS, L: QmechL, T: QmechS + QmechL } : null;
-    return { mode, Qs, Ql, Qt: Qs + Ql, sensible, latent, VdotM, QmechS, QmechL, Afloor, V, oa };
+    // mechanical fresh air, whatever the delivery: inRoom = its load is inside Qs/Ql (delivered directly)
+    const mech = { Vh: VdotM * 3600, S: QmechS, L: QmechL, inRoom: !oaViaAhu };
+    return { mode, Qs, Ql, Qt: Qs + Ql, sensible, latent, VdotM, QmechS, QmechL, Afloor, V, oa, mech };
   }
 
   function computeLoadsForMode(modeForced) {
     const r = computeCore(modeForced);
-    return { mode: r.mode, Qs: r.Qs, Ql: r.Ql, Qt: r.Qt, sensible: r.sensible, latent: r.latent, oa: r.oa || null };
+    return { mode: r.mode, Qs: r.Qs, Ql: r.Ql, Qt: r.Qt, sensible: r.sensible, latent: r.latent, oa: r.oa || null, mech: r.mech || null };
   }
 
   function bindCustomSelect(presetId, customId) {
@@ -2608,7 +2611,14 @@
 
   const isAreaMode = () => str("GeoMode", "dims") === "area";
 
+  function syncMechUi() {
+    const flow = str("MechMode", "ach") === "flow";
+    $("wrapACHmech")?.classList.toggle("lc-unused", flow);
+    $("wrapQmech")?.classList.toggle("lc-unused", !flow);
+  }
+
   function syncDerivedUi() {
+    syncMechUi();
     document.body.setAttribute("data-geo", isAreaMode() ? "area" : "dims");
     if ($("H_display")) $("H_display").value = $("H")?.value || "";
     const g = roomGeom();
@@ -2961,7 +2971,7 @@
   function calcLoad() {
     const mode = str("Mode", "cool");
     const core = computeCore(mode);
-    const { Qs, Ql, Qt, sensible, latent, VdotM, QmechS, QmechL, Afloor, oa } = core;
+    const { Qs, Ql, Qt, sensible, latent, VdotM, QmechS, QmechL, Afloor, oa, mech } = core;
 
     const list = (parts) => Object.entries(parts)
       .filter(([, v]) => v > 1)
@@ -3030,6 +3040,7 @@
     lastCalc = {
       mode,
       oa,
+      mech,
       Qt,
       Qs,
       Ql,
@@ -3164,19 +3175,16 @@
     const Tout = num("Tout", 36);
     const RHout = num("RHout", 40);
 
-    const V = roomGeom().V;
+    // The fresh air always goes into the coil mix. When the Loads tab has it "directly to the room",
+    // its load is inside Qs/Ql, so it is taken out of the room load here (no double counting).
+    const mech = lastCalc?.mode === "cool" ? lastCalc.mech : null;
+    const Voa = mech ? mech.Vh / 3600 : 0;
+    const qsAll = parseFloat($("sumQsVal")?.getAttribute("data-w") || "NaN");
+    const qlAll = parseFloat($("sumQlVal")?.getAttribute("data-w") || "NaN");
+    const qs = qsAll - (mech && mech.inRoom ? mech.S : 0);
+    const ql = Math.max(0, qlAll - (mech && mech.inRoom ? mech.L : 0));
 
-    // Fresh air passes through this coil only when it is delivered through the AHU.
-    // Delivered directly, it is already part of the room load (qs/ql) -> no OA in the mix (v10 fix: it was counted twice).
-    const mechMode = str("MechMode", "ach");
-    const ACHm = mechMode === "ach" ? num("ACHmech", 0) : 0;
-    const Qm = mechMode === "flow" ? num("Qmech", 0) : 0;
-    const Voa = str("OaMode", "direct") === "ahu" ? (ACHm * V / 3600) + (Qm / 3600) : 0;
-
-    const qs = parseFloat($("sumQsVal")?.getAttribute("data-w") || "NaN");
-    const ql = parseFloat($("sumQlVal")?.getAttribute("data-w") || "NaN");
-
-    return { mode, Tin, RHin, Tout, RHout, Voa, qs, ql, ahu: null };
+    return { mode, Tin, RHin, Tout, RHout, Voa, qs, ql, ahu: null, oaInRoom: !!(mech && mech.inRoom && mech.Vh > 0) };
   }
 
   function bisect(fn, lo, hi, tol = 1e-4, maxIter = 60) {
@@ -3220,14 +3228,11 @@
     const host = $("psyStatus");
     if (!host) return;
     const ok = R && Number.isFinite(R.qs);
-    const V = roomGeom().V;
-    const mech = str("MechMode", "ach") === "ach" ? num("ACHmech", 0) * V : num("Qmech", 0);
-    const oaVh = R?.ahu ? R.ahu.oaVh : mech;
-    const through = R?.ahu ? true : str("OaMode", "direct") === "ahu";
+    const oaVh = R ? R.Voa * 3600 : 0;
     const who = R?.ahu ? `${tr("AHU", "ΚΚΜ")} «${esc(R.ahu.name)}»` : (selectedRoomId ? esc(spaces.find((x) => x.id === selectedRoomId)?.name || "") : tr("current room", "τρέχων χώρος"));
     host.innerHTML = `
-      <div class="${ok ? "ok" : "no"}"><b>1 · ${tr("Loads", "Φορτία")}</b><span>${ok ? `${who}: Qs ${fmtPower(R.qs)} · Ql ${fmtPower(R.ql || 0)}` : tr("Not calculated in cooling — press Calculate in Loads (cooling mode).", "Δεν έχουν υπολογιστεί σε ψύξη — πάτα Υπολογισμός στα Φορτία (λειτουργία Ψύξη).")}</span></div>
-      <div class="ok"><b>2 · ${tr("Fresh air", "Νωπός αέρας")}</b><span>${oaVh > 0 ? `${oaVh.toFixed(0)} m³/h · ${through ? tr("through this coil", "περνά από το στοιχείο") : tr("directly to the room — already in the room load, not through the coil", "απευθείας στον χώρο — είναι ήδη στο φορτίο χώρου, δεν περνά από το στοιχείο")}` : tr("none (mechanical ventilation 0)", "κανένας (μηχανικός αερισμός 0)")}</span></div>
+      <div class="${ok ? "ok" : "no"}"><b>1 · ${tr("Loads", "Φορτία")}</b><span>${ok ? `${who}: Qs ${fmtPower(R.qs)} · Ql ${fmtPower(R.ql || 0)}${R.oaInRoom ? ` ${tr("(room only, fresh air taken out)", "(μόνο χώρος, χωρίς τον νωπό)")}` : ""}` : tr("Not calculated in cooling — press Calculate in Loads (cooling mode).", "Δεν έχουν υπολογιστεί σε ψύξη — πάτα Υπολογισμός στα Φορτία (λειτουργία Ψύξη).")}</span></div>
+      <div class="ok"><b>2 · ${tr("Fresh air", "Νωπός αέρας")}</b><span>${oaVh > 0 ? `${oaVh.toFixed(0)} m³/h · ${tr("mixed with return air before the coil", "αναμιγνύεται με την επιστροφή πριν το στοιχείο")}` : tr("none (mechanical ventilation 0)", "κανένας (μηχανικός αερισμός 0)")}</span></div>
       <div class="ok"><b>3 · ${tr("Supply", "Προσαγωγή")}</b><span>${num("PS_Tsa", 14).toFixed(1)} °C · ${num("PS_RHsa", 90).toFixed(0)} % · ${tr("water", "νερό")} ${num("CS_EWT", 7)}/${num("CS_LWT", 12)} °C</span></div>`;
   }
 
@@ -3408,7 +3413,6 @@
     const RHroomEq = RH_Tw(R.Tin, wRoomEq);
     const humOk = qlCap >= qlRoom * 0.97;
     const through = Voa > 0;
-    const directOa = !R.ahu && str("OaMode", "direct") !== "ahu" ? (str("MechMode", "ach") === "ach" ? num("ACHmech", 0) * roomGeom().V : num("Qmech", 0)) : 0;
     const Tfmt = (x) => `${x.toFixed(1)} °C`;
     const card = (title, value, lines, expl) => `<div class="kpi psy-card"><div class="muted">${title}</div><b>${value}</b>${lines.map((l) => `<div>${l}</div>`).join("")}${expl ? `<div class="psy-ex">${expl}</div>` : ""}</div>`;
 
@@ -3422,9 +3426,8 @@
           [`${tr("OA fraction", "Ποσοστό OA")}: ${((VoaH / Math.max(1, VsaH)) * 100).toFixed(1)}%`],
           Number.isFinite(SAin) && SAin > 0 ? tr("As entered.", "Όπως δόθηκε.") : tr(`Needed to cover the room sensible load (Qs ${fmtPower(R.qs)}) with supply at ${TsaTarget.toFixed(1)} °C.`, `Όση χρειάζεται για να καλύψει το αισθητό του χώρου (Qs ${fmtPower(R.qs)}) με προσαγωγή στους ${TsaTarget.toFixed(1)} °C.`))}
         ${card(tr("Fresh / recirculated air", "Νωπός / ανακυκλοφορία"), `${VoaH.toFixed(0)} / ${VrecH.toFixed(0)} m³/h`, [],
-          through ? tr("Fresh air mixed with return air before the coil.", "Ο νωπός αναμιγνύεται με την επιστροφή πριν το στοιχείο.")
-            : (directOa > 0 ? tr(`Fresh air (${directOa.toFixed(0)} m³/h) goes directly to the room: its load is already in the room load, the coil treats only return air. Change it above if it goes through the unit.`, `Ο νωπός (${directOa.toFixed(0)} m³/h) πηγαίνει απευθείας στον χώρο: το φορτίο του είναι ήδη στο φορτίο του χώρου και το στοιχείο επεξεργάζεται μόνο επιστροφή. Άλλαξέ το παραπάνω αν περνά από τη μονάδα.`)
-            : tr("No fresh air: the coil treats return air only.", "Χωρίς νωπό: το στοιχείο επεξεργάζεται μόνο επιστροφή.")))}
+          through ? tr("Fresh air (from the Loads tab) mixed with return air before the coil.", "Ο νωπός (από τα Φορτία) αναμιγνύεται με την επιστροφή πριν το στοιχείο.")
+            : tr("No fresh air: the coil treats return air only.", "Χωρίς νωπό: το στοιχείο επεξεργάζεται μόνο επιστροφή."))}
         ${card(tr("Coil capacity", "Ισχύς στοιχείου"), fmtPower(Qct),
           [`Qs ${fmtPower(Qcs)} · Ql ${fmtPower(Qcl)} · SHR ${(Qct > 0 ? Qcs / Qct : 0).toFixed(2)}`, `${groupThousands(Qct * BTU_PER_W)} BTU/h`],
           through ? tr("Room load plus fresh-air load.", "Φορτίο χώρου συν φορτίο νωπού.") : tr("Room load.", "Φορτίο χώρου."))}
@@ -3624,7 +3627,7 @@
   function syncPsychroUiState() {
     const view = str("PS_ViewMode", "simple");
     $("psychroPane")?.classList.toggle("is-simple", view === "simple");
-    if ($("PS_OaThrough")) $("PS_OaThrough").value = str("OaMode", "direct");
+
 
     const m = str("PS_Mode", "fixT");
     const rh = str("PS_SA_RH_mode", "sat");
@@ -3727,6 +3730,7 @@
     if (mode === "cool" && Tout <= Tin) lines.push(currentLang==="el"?"Ψύξη με Tout <= Tin. Έλεγξε τις εξωτερικές συνθήκες.":"Cooling mode with Tout <= Tin. Check outdoor input.");
     if (mode === "heat" && Tin <= Tout) lines.push(currentLang==="el"?"Θέρμανση με Tin <= Tout. Έλεγξε τις εξωτερικές συνθήκες.":"Heating mode with Tin <= Tout. Check outdoor input.");
 
+    if (str("MechMode", "ach") === "ach" && num("ACHmech", 0) <= 0 && num("Qmech", 0) > 0) lines.push(currentLang==="el"?"Έχεις παροχή μηχανικού αερισμού σε m³/h αλλά η μέθοδος είναι ACH: η παροχή δεν μετράει.":"Mechanical airflow in m³/h is set but the method is ACH: the airflow is not used.");
     if (str("MechMode", "ach") === "flow" && num("Qmech", 0) <= 0) lines.push(currentLang==="el"?"Η μηχανική λειτουργία είναι m3/h αλλά η παροχή είναι μηδενική.":"Mechanical mode is m3/h but airflow is zero.");
     if (selectedRoomId && selectedRoomDirty) lines.push(currentLang==="el"?"Ο επιλεγμένος χώρος έχει αλλαγές. Πάτα Υπολογισμός για ενημέρωση κάρτας/συνόλων.":"Selected room has pending edits. Press Calculate to update card/totals.");
 
@@ -3777,6 +3781,17 @@
       });
     });
 
+    [["ACHmech", "ach"], ["Qmech", "flow"]].forEach(([id, mode]) => {
+      $(id)?.addEventListener("input", (e) => {
+        if (!e.isTrusted || !$("MechMode")) return;
+        if (str("MechMode", "ach") !== mode && num(id, 0) > 0) {
+          $("MechMode").value = mode;
+          $("MechMode").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+    });
+    $("MechMode")?.addEventListener("change", syncMechUi);
+
     ["GeoMode", "L", "W", "Afloor", "H"].forEach((id) => {
       $(id)?.addEventListener("input", syncDerivedUi);
       $(id)?.addEventListener("change", () => { syncDerivedUi(); enforceWallConsistency(); });
@@ -3820,13 +3835,6 @@
     $("exportPsychroPdfBtn")?.addEventListener("click", exportPsychroPdf);
 
     ["CS_EWT", "CS_LWT", "CS_Vface", "CS_Fin", "CS_Tube"].forEach((id) => $(id)?.addEventListener("change", () => calcPsychro()));
-    $("PS_OaThrough")?.addEventListener("change", () => {
-      if (!$("OaMode")) return;
-      $("OaMode").value = $("PS_OaThrough").value;
-      markSelectedRoomDirty();
-      calcLoad();
-      calcPsychro();
-    });
     $("PS_ViewMode")?.addEventListener("change", () => { syncPsychroUiState(); calcPsychro(); });
     $("CS_Pdf")?.addEventListener("click", exportCoilPdf);
 
@@ -3905,7 +3913,6 @@
 
   // ---------- project persistence (autosave + project file) ----------
   const LS_KEY = "lc.project.v1";
-  let autosaveTimer = null;
   let restoring = false;
 
   function projectState() {
@@ -3918,16 +3925,22 @@
       lang: currentLang,
       current: captureInputs(),
       spaces: spaces.map((x) => ({ ...x })),
+      guide: window.__lcGuide ? window.__lcGuide.get() : null,
       selectedRoomId
     };
   }
 
-  function scheduleAutosave() {
-    if (restoring) return;
-    clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(projectState())); } catch (e) { /* storage blocked */ }
-    }, 500);
+  // v12: nothing is kept in the browser. The study lives only in the project file the user saves.
+  // This only tracks whether there are changes not yet saved to a file (warning when leaving the page).
+  let unsaved = false;
+  function scheduleAutosave(e) {
+    if (restoring || !e || !e.target || !e.target.closest) return; // only real user actions count
+    if (e.type === "click") {
+      if (e.target.closest("#addRoomBtn, #clearRoomsBtn, #addWinGrp, #addDev, #addCustom, .wg-del, .dv-del, .space-row button")) unsaved = true;
+      return;
+    }
+    if (e.target.closest("#lcNote, #Lang, #lcOpenFile")) return;
+    unsaved = true;
   }
 
   function showNote(html, withNew = false) {
@@ -3968,10 +3981,11 @@
       }
       renderSpaces();
       renderLiveChecks();
+      if (window.__lcGuide) window.__lcGuide.set(st.guide || {});
     } finally {
       restoring = false;
     }
-    scheduleAutosave();
+    unsaved = false;
   }
 
   const fileSafe = (x) => (String(x || "").trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").slice(0, 80) || "HVAC-study");
@@ -3998,7 +4012,8 @@
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    showNote(tr("Project file saved. Keep it in the project folder — double-click opens the calculator filled in.", "Το αρχείο έργου αποθηκεύτηκε. Βάλ' το στον φάκελο του έργου — με διπλό κλικ ανοίγει το υπολογιστικό συμπληρωμένο."));
+    unsaved = false;
+    showNote(tr("Project file saved (Downloads). Move it to the project folder — double-click opens the calculator filled in, on any computer with internet. Nothing is kept in this browser.", "Το αρχείο έργου αποθηκεύτηκε (Λήψεις). Μετάφερέ το στον φάκελο του έργου — με διπλό κλικ ανοίγει το υπολογιστικό συμπληρωμένο, σε όποιον υπολογιστή έχει internet. Στον browser δεν κρατιέται τίποτα."));
   }
 
   function parseProjectText(text) {
@@ -4027,10 +4042,8 @@
   }
 
   function newStudy() {
-    if (!confirm(tr("Start a new study? Unsaved data in this browser will be cleared (project files you saved are not affected).", "Νέα μελέτη; Θα σβηστούν τα δεδομένα αυτού του browser (τα αρχεία έργου που έχεις αποθηκεύσει δεν επηρεάζονται)."))) return;
-    try { localStorage.removeItem(LS_KEY); localStorage.removeItem("lc.guide.v1"); } catch (e) { /* ignore */ }
-    clearTimeout(autosaveTimer);
-    restoring = true; // no autosave before reload
+    if (unsaved && !confirm(tr("Start a new study? Changes not saved to a project file will be lost.", "Νέα μελέτη; Ό,τι δεν έχει αποθηκευτεί σε αρχείο έργου θα χαθεί."))) return;
+    unsaved = false;
     location.replace(location.href.split("#")[0]);
   }
 
@@ -4045,17 +4058,7 @@
         showNote(tr("Could not read the project from the link.", "Δεν ήταν δυνατή η ανάγνωση του έργου από τον σύνδεσμο."));
       }
       try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) { /* ignore */ }
-      return;
     }
-    let raw = null;
-    try { raw = localStorage.getItem(LS_KEY); } catch (e) { raw = null; }
-    if (!raw) return;
-    try {
-      const st = JSON.parse(raw);
-      restoreProject(st);
-      const when = st.savedAt ? new Date(st.savedAt).toLocaleString(currentLang === "el" ? "el-GR" : "en-GB") : "";
-      showNote(`${tr("Continuing where you left off", "Συνεχίζεις από εκεί που είχες μείνει")}${when ? ` (${when})` : ""}.`, true);
-    } catch (e) { /* corrupt autosave: ignore */ }
   }
 
   function bootstrap() {
@@ -4087,7 +4090,14 @@
       syncPsychroUiState();
       renderSpaces();
       showLoadsPane();
+      // remove data that older versions kept in the browser (v9–v11 autosave)
+      try { localStorage.removeItem(LS_KEY); localStorage.removeItem("lc.guide.v1"); } catch (e) { /* ignore */ }
       loadInitialProject();
+      window.addEventListener("beforeunload", (e) => {
+        if (!unsaved) return;
+        e.preventDefault();
+        e.returnValue = "";
+      });
       ["input", "change", "click"].forEach((ev) => document.addEventListener(ev, scheduleAutosave, true));
     } catch (err) {
       console.error("Initialization error:", err);
@@ -4113,10 +4123,12 @@
 (function () {
   "use strict";
   var main, sections = [], rail, stepsHost, remainEl, mbar, mbarVal, mbarLbl;
-  var GKEY = "lc.guide.v1";
-  var state = {}; // per room: { done: {idx:true}, active: idx }
-  try { state = JSON.parse(localStorage.getItem(GKEY) || "{}") || {}; } catch (e) { state = {}; }
-  function save() { try { localStorage.setItem(GKEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+  var state = {}; // per room: { done: {idx:true}, active: idx } — saved only inside the project file
+  function save() { /* nothing kept in the browser */ }
+  window.__lcGuide = {
+    get: function () { return JSON.parse(JSON.stringify(state)); },
+    set: function (v) { state = (v && typeof v === "object") ? v : {}; if (stepsHost) render(); }
+  };
   var active = 0;
 
   function lang() {

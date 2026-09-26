@@ -241,10 +241,12 @@ with sync_playwright() as p:
     check("double-clicking the project file opens the tool filled in", after["name"] == "TEST-01 Αποθήκη" and after["tree"] == before["tree"] and after["total"] == before["total"], json.dumps(after, ensure_ascii=False)[:200])
     check("project link is removed from the address bar after opening", after["hash"] == "", after["hash"][:30])
 
-    # 11. autosave: reload in the same browser -> same study
+    # 11. nothing kept in the browser: reopening without the file starts a new study; guide progress travels in the file
+    keys = page2.evaluate("() => Object.keys(localStorage)")
     page2.reload(); page2.wait_for_timeout(1200)
-    again = page2.evaluate("""() => ({ tree: document.getElementById('spacesTree').innerText, note: !document.getElementById('lcNote').hidden, name: document.getElementById('projectName').value })""")
-    check("reopening the page continues the last study", again["tree"] == before["tree"] and again["note"] and again["name"] == "TEST-01 Αποθήκη", json.dumps(again, ensure_ascii=False)[:160])
+    again = page2.evaluate("""() => ({ tree: document.getElementById('spacesTree').innerText, name: document.getElementById('projectName').value, note: !document.getElementById('lcNote').hidden })""")
+    check("no data kept in the browser; reopening the page starts empty", keys == [] and again["name"] == "" and "Room A" not in again["tree"] and not again["note"], json.dumps({"keys": keys, **again}, ensure_ascii=False)[:160])
+    check("project file carries the guided-flow progress", isinstance(state.get("guide"), dict), str(state.get("guide"))[:80])
 
     # 12. reports open without errors and show the building total
     for btn in ["exportLoadPdfBtn", "exportLoadDetailedPdfBtn"]:
@@ -266,8 +268,14 @@ with sync_playwright() as p:
     click(page, "#tabPsychro"); page.wait_for_timeout(200)
     setv(page, "#PS_SA_RH_mode", "manual"); setv(page, "#PS_RHsa", 92); setv(page, "#PS_Tsa", 14)
     click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    def coil_kw():
+        return page.evaluate("() => { const m = document.getElementById('psychroMix').innerText.match(/Ισχύς στοιχείου\\s*([\\d.]+) kW/); return m ? parseFloat(m[1]) : null; }")
+    q_direct = coil_kw()
     mix = page.evaluate("() => document.getElementById('psychroMix').innerText")
-    check("direct fresh air: coil inlet = room air (no double counting)", re.search(r"Αέρας είσοδος στοιχείου\s*24\.0 °C", mix) is not None, mix[:160].replace("\n", " | "))
+    setv(page, "#OaMode", "ahu"); click(page, "#btnCalc"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    q_ahu = coil_kw()
+    setv(page, "#OaMode", "direct"); click(page, "#btnCalc"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    check("fresh air always in the coil mix; same coil for direct and AHU (no double counting)", "200 / " in mix and q_direct and q_ahu and abs(q_direct - q_ahu) <= 0.011, f"direct {q_direct} kW vs AHU {q_ahu} kW")
     sheet = page.evaluate("() => document.getElementById('coilSheet').innerText")
     q = page.evaluate("() => { const m = document.getElementById('psychroMix').innerText.match(/Ισχύς στοιχείου\\s*([\\d.]+) kW/); return m ? parseFloat(m[1]) : null; }")
     vw = re.search(r"Παροχή νερού\s*([\d.]+) m³/h", sheet)
@@ -326,6 +334,23 @@ with sync_playwright() as p:
     css = rp.evaluate("Array.from(document.styleSheets).map(x => Array.from(x.cssRules).map(r => r.cssText).join(' ')).join(' ')")
     check("report: engineer name, W/m² and BTU/h·m² per component, bars printable", "Κ. Μηχανικός, ΜΜ" in t and "BTU/h·m²" in t and "print-color-adjust" in css, "")
     rp.close()
+
+    # 18. mechanical ventilation: only the selected method counts; typing selects the method
+    base_room(page); setv(page, "#MechMode", "ach"); setv(page, "#ACHmech", 0)
+    page.evaluate("() => { document.getElementById('Qmech').value = '500'; }")  # value without typing
+    click(page, "#btnCalc")
+    r_ach = rows(page)
+    check("ACH method: the m³/h field is not counted", near(r_ach.get("Αερισμός αισθητό"), 0.7 * 60 / 3600 * RHO * CP * 11 * 1000, 1.0), f"{r_ach.get('Αερισμός αισθητό')}")
+    page.fill("#Qmech", ""); page.type("#Qmech", "500")                    # real typing
+    click(page, "#btnCalc")
+    r_flow = rows(page)
+    exp = (0.7 * 60 / 3600 + 500 / 3600) * RHO * CP * 11 * 1000
+    check("typing an airflow switches the method to m³/h and counts it", page.input_value("#MechMode") == "flow" and near(r_flow.get("Αερισμός αισθητό"), exp, 1.0), f"{page.input_value('#MechMode')} {r_flow.get('Αερισμός αισθητό')} vs {exp:.1f}")
+    click(page, "#tabPsychro"); page.wait_for_timeout(200)
+    setv(page, "#psRoomSelect", ""); click(page, "#loadRoomBtn"); page.wait_for_timeout(200)
+    st = page.evaluate("() => document.getElementById('psyStatus').innerText")
+    check("psychrometrics sees the same fresh air (500 m³/h)", "500 m³/h" in st, st.replace("\n", " | ")[:160])
+    click(page, "#closePsychro")
 
     # 13. Greek everywhere in the loads form
     allowed = set("""U SHGC ACH RH CAD LED PVC PU PIR XPS EPS ETICS CNC UPS POS IT kW BTU h W m Qs Ql SHR TV PC D LED T8 low-e low Ytong sandwich
