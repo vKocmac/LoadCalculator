@@ -49,7 +49,13 @@ def selects(page, scope):
             if k not in ("Lang", "psRoomSelect", "Units") and page.evaluate("(i) => { const e = document.getElementById(i); return !!e && !e.disabled; }", k)]
 
 
+# presets removed in v10 (far too optimistic U) -> the value the tool migrates them to
+MIGRATE = {"#UroofPreset": {"1.00": "3.30", "2.40": "7.00"}, "#UfloorPreset": {"p|1.50": "p|2.50"}}
+
+
 def setv(page, sel, val):
+    if os.environ.get("LC_MIGRATE") and sel in MIGRATE:
+        val = MIGRATE[sel].get(str(val), val)
     page.evaluate("""([s, v]) => { const e = document.querySelector(s); e.value = v;
       e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true})); }""", [sel, str(val)])
 

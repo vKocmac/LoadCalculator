@@ -51,7 +51,7 @@ def base_room(page):
                  "LwallExt": 9, "LwallUnh": 0, "UwallPreset": "0.70", "UwallUnhPreset": "same", "UwinPreset": "2.8", "SHGCpreset": "0.70",
                  "UroofPreset": "0.35", "RoofPctExt": 0, "RoofPctUnh": 0, "RoofPctHeated": 100, "UfloorPreset": "g|0.50",
                  "FloorPctGround": 100, "FloorPctUnh": 0, "FloorPctHeated": 0, "ACHinf": "0.7", "ACHnat": "0", "InfSource": "out",
-                 "MechMode": "flow", "Qmech": 0, "ACHmech": 0, "nPeople": 0, "LightingWm2": 0, "EquipWm2": 0}.items():
+                 "MechMode": "flow", "Qmech": 0, "ACHmech": 0, "OaMode": "direct", "InfSource": "out", "nPeople": 0, "LightingWm2": 0, "EquipWm2": 0}.items():
         setv(page, "#" + k, v)
     page.evaluate("""() => { document.querySelector('#winTable tbody').innerHTML = ''; document.querySelector('#devTable tbody').innerHTML = ''; }""")
     click(page, "#btnCalc")
@@ -169,21 +169,57 @@ with sync_playwright() as p:
     nwin = page.evaluate("() => document.querySelectorAll('#winTable tbody tr').length")
     check("re-selecting room A restores its windows", nwin == 1 and near(t_back, t_room1, 1.0), f"{nwin} rows, {t_back:.0f} vs {t_room1:.0f} W (room B {t_room2:.0f} W)")
 
-    # 9b. the other season of a saved room uses that season's conditions (pre-v9: the active season's)
+    # 9b. the other season of a saved room: only from a real calculation (no estimate)
     tree = page.evaluate("() => document.getElementById('spacesTree').innerText")
-    check("custom city: other season shown as — (unknown), not a wrong number", tree.count("Απώλειες: —") == 2, tree.replace("\n", " | ")[:200])
+    check("saved in cooling: heat losses shown as — until calculated", tree.count("Απώλειες: —") == 2, tree.replace("\n", " | ")[:200])
     base_room(page)
-    setv(page, "#city", "Athens|36|40"); click(page, "#btnCalc")   # cooling Athens: Tout 36
+    setv(page, "#city", "Athens|36|40"); click(page, "#btnCalc")
     page.evaluate("() => document.getElementById('addWinGrp').click()")
     page.evaluate("() => { const tr = document.querySelector('#winTable tbody tr:last-child'); tr.querySelector('.wg-orient').value = 'N'; tr.querySelector('.wg-area').value = '4'; }")
     click(page, "#btnCalc")
+    cool_before = total_w(page)
     setv(page, "#roomName", "Athens room"); click(page, "#addRoomBtn")
+    # select it, switch to heating, calculate
+    page.evaluate("() => { const r = document.querySelectorAll('#spacesTree .space-row'); r[r.length - 1].click(); }")
+    setv(page, "#Mode", "heat"); click(page, "#btnCalc")
     last = page.evaluate("() => { const r = document.querySelectorAll('#spacesTree .space-row'); return r[r.length - 1].innerText; }")
-    heat = re.search(r"Απώλειες: ([\d ]+) BTU/h(\*?)", last)
-    # winter Athens: Tin 22, Tout 2 -> ΔT 20: wall (27-4)·0.70·20 + window 4·2.8·20 + infiltration 0.7·60/3600·1.2·1.006·20·1000 + ground floor 20·0.5·(22-12)
+    heat = re.search(r"Απώλειες: ([\d\u202f]+) BTU/h", last)
+    cool = re.search(r"Ψύξη: ([\d\u202f]+) BTU/h", last)
     exp = (27 - 4) * 0.70 * 20 + 4 * 2.8 * 20 + 0.7 * 60 / 3600 * RHO * CP * 20 * 1000 + 20 * 0.5 * 10
-    got = float(heat.group(1).replace(" ", "")) / BTU if heat else None
-    check("saved room: heat losses with winter conditions, marked * as estimate", heat and heat.group(2) == "*" and got and abs(got - exp) < 2, f"{got} vs {exp:.1f} W")
+    got = float(heat.group(1).replace("\u202f", "")) / BTU if heat else None
+    gotc = float(cool.group(1).replace("\u202f", "")) / BTU if cool else None
+    check("heat losses after calculating the room in heating (winter Athens)", got and abs(got - exp) < 2, f"{got} vs {exp:.1f} W")
+    check("cooling result of the room is kept after the heating calculation", gotc and abs(gotc - cool_before) < 2, f"{gotc} vs {cool_before:.1f} W")
+    setv(page, "#H", 3.5); click(page, "#btnCalc")
+    last = page.evaluate("() => { const r = document.querySelectorAll('#spacesTree .space-row'); return r[r.length - 1].innerText; }")
+    check("changing the geometry drops the other season (needs recalculation)", "Ψύξη: —" in last, last.replace("\n", " | "))
+    setv(page, "#Mode", "cool")
+
+    # 9c. fresh air through AHU: excluded from room load, shown separately
+    base_room(page)
+    setv(page, "#Qmech", 200); click(page, "#btnCalc")
+    direct = rows(page)
+    setv(page, "#OaMode", "ahu"); click(page, "#btnCalc")
+    ahu = rows(page)
+    m_oa = 200 / 3600 * RHO
+    check("AHU: room ventilation = infiltration only", near(ahu.get("Αερισμός αισθητό"), 0.7 * 60 / 3600 * RHO * CP * 11 * 1000, 1.0), f"{ahu.get('Αερισμός αισθητό')}")
+    check("AHU: fresh-air sensible shown separately", near(ahu.get("Αισθητό νωπού"), m_oa * CP * 11 * 1000, 1.0), f"{ahu.get('Αισθητό νωπού')}")
+    check("AHU: room + fresh air = direct total", near(ahu.get("Χώρος + νωπός"), direct["__total"], 2.0), f"{ahu.get('Χώρος + νωπός')} vs {direct['__total']:.1f}")
+
+    # 9d. per-row type: an opaque steel door on the west, no solar, own U
+    base_room(page)
+    page.evaluate("() => document.getElementById('addWinGrp').click()")
+    page.evaluate("""() => { const tr = document.querySelector('#winTable tbody tr:last-child'); tr.querySelector('.wg-orient').value = 'W';
+      tr.querySelector('.wg-area').value = '2'; tr.querySelector('.wg-u').value = '5.8'; tr.querySelector('.wg-shgc').value = '0'; }""")
+    click(page, "#btnCalc")
+    r = rows(page)
+    check("door row: conduction with its own U (2 m² × 5.8 × 11 K)", near(r.get("Υαλοστάσια αγωγιμότητα"), 2 * 5.8 * 11, 1.0), f"{r.get('Υαλοστάσια αγωγιμότητα')}")
+    check("door row with SHGC 0: no solar gain", "Ηλιακά κέρδη υαλοστασίων" not in r, "")
+
+    # 9e. old presets with far too optimistic U are migrated
+    page.evaluate("""() => { const o = document.getElementById('UroofPreset'); const x = document.createElement('option'); x.value = '1.00'; o.appendChild(x); }""")
+    opts = page.evaluate("() => Array.from(document.getElementById('UfloorPreset').options).map(o => o.value)")
+    check("removed presets are gone from the lists", "p|1.50" not in opts, "")
 
     # 10. project file round trip
     setv(page, "#projectName", "TEST-01 Αποθήκη")
@@ -224,9 +260,33 @@ with sync_playwright() as p:
             txt2 = rp.evaluate("document.body.textContent"); check("detailed report contains input data", "Δεδομένα εισόδου" in txt2 and "Κουφώματα" in txt2, "")
         rp.close()
 
+    # 14. psychrometrics: direct fresh air not mixed at the coil; coil sheet water flow
+    base_room(page)
+    setv(page, "#Qmech", 200); setv(page, "#Units", "kW"); click(page, "#btnCalc")
+    click(page, "#tabPsychro"); page.wait_for_timeout(200)
+    setv(page, "#PS_SA_RH_mode", "manual"); setv(page, "#PS_RHsa", 92); setv(page, "#PS_Tsa", 14)
+    click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    mix = page.evaluate("() => document.getElementById('psychroMix').innerText")
+    check("direct fresh air: coil inlet = room air (no double counting)", "24.0 degC" in mix, mix[:160].replace("\n", " | "))
+    sheet = page.evaluate("() => document.getElementById('coilSheet').innerText")
+    q = page.evaluate("() => { const m = document.getElementById('psychroMix').innerText.match(/Φορτίο στοιχείου\\s*([\\d.]+) kW/); return m ? parseFloat(m[1]) : null; }")
+    vw = re.search(r"Παροχή νερού\s*([\d.]+) m³/h", sheet)
+    exp_vw = q * 1000 / (4186 * 5) * 3.6 if q else None
+    check("coil sheet: water flow = Q / (4.186 · ΔT)", vw and exp_vw and abs(float(vw.group(1)) - exp_vw) < 0.02, f"{vw.group(1) if vw else None} vs {exp_vw}")
+    check("coil sheet: rows, face area and feasibility shown", "Σειρές" in sheet and "Επιφάνεια μετώπου" in sheet and "Πρώτος έλεγχος" in sheet, "")
+    setv(page, "#OaMode", "ahu"); click(page, "#btnCalc"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    mix2 = page.evaluate("() => document.getElementById('psychroMix').innerText")
+    frac = re.search(r"Ποσοστό OA: ([\d.]+)%", mix2)
+    check("AHU fresh air: OA fraction never above 100%", frac and float(frac.group(1)) <= 100.0001, frac.group(1) if frac else mix2[:100])
+    setv(page, "#OaMode", "direct"); click(page, "#btnCalc")
+    setv(page, "#PS_SA_RH_mode", "sat"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    sheet = page.evaluate("() => document.getElementById('coilSheet').innerText")
+    check("coil sheet: saturated supply flagged as not achievable", "ΜΗ εφικτό" in sheet, sheet[:120].replace("\n", " | "))
+    click(page, "#closePsychro")
+
     # 13. Greek everywhere in the loads form
     allowed = set("""U SHGC ACH RH CAD LED PVC PU PIR XPS EPS ETICS CNC UPS POS IT kW BTU h W m Qs Ql SHR TV PC D LED T8 low-e low Ytong sandwich
-      rack Switch switch Plotter espresso high-bay kVA inverter P η kg A B N S E NE NW SE SW Β Α Ν Δ ΒΑ ΒΔ ΝΑ ΝΔ g p x ASHRAE Fundamentals Argon POS PDF Rack Ug Uw cm mm laser""".split())
+      rack Switch switch Plotter espresso high-bay kVA inverter P η kg A B N S E NE NW SE SW Β Α Ν Δ ΒΑ ΒΔ ΝΑ ΝΔ g p x ASHRAE Fundamentals Argon POS PDF Rack Ug Uw cm mm laser PU""".split())
     texts = page.evaluate("""() => Array.from(document.querySelectorAll('#loadsMain label, #loadsMain h2, #loadsMain th, #loadsMain button, #loadsMain option, #loadsMain optgroup, #loadsMain .desc, .side h3, .side summary, .side button, .side label, #tabsBar button'))
       .map(e => e.tagName === 'OPTGROUP' ? e.label : e.textContent)""")
     leftovers = set()
