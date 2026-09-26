@@ -352,6 +352,22 @@ with sync_playwright() as p:
     check("psychrometrics sees the same fresh air (500 m³/h)", "500 m³/h" in st, st.replace("\n", " | ")[:160])
     click(page, "#closePsychro")
 
+    # 19. the result follows every change without pressing Calculate
+    base_room(page)
+    before = total_w(page)
+    page.fill("#H", ""); page.type("#H", "4")
+    page.wait_for_timeout(600)
+    after = total_w(page)
+    check("typing in a field recalculates automatically", abs(after - before) > 5, f"{before:.0f} → {after:.0f} W")
+    page.evaluate("() => { document.getElementById('H').value = '5'; }")   # silent change, no event
+    page.evaluate("""() => { const secs = document.querySelectorAll('#loadsMain > .section'); const last = secs[secs.length - 1];
+      last.querySelector('input:not([disabled])').focus(); }""")
+    page.wait_for_timeout(150)
+    page.evaluate("() => document.querySelector('#loadsMain > .section.lc-active .lc-next button').click()")
+    page.wait_for_timeout(300)
+    after2 = total_w(page)
+    check("'Done → Calculate' really calculates", abs(after2 - after) > 5, f"{after:.0f} → {after2:.0f} W")
+
     # 13. Greek everywhere in the loads form
     allowed = set("""U SHGC ACH RH CAD LED PVC PU PIR XPS EPS ETICS CNC UPS POS IT kW BTU h W m Qs Ql SHR TV PC D LED T8 low-e low Ytong sandwich
       rack Switch switch Plotter espresso high-bay kVA inverter P η kg A B N S E NE NW SE SW Β Α Ν Δ ΒΑ ΒΔ ΝΑ ΝΔ g p x ASHRAE Fundamentals Argon POS PDF Rack Ug Uw cm mm laser PU AHU""".split())

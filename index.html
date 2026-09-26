@@ -1228,7 +1228,7 @@
       roomNamePh: "Room name",
       clearRoomsBtn: "Clear",
       tabPsychro: "Psychrometrics",
-      btnCalc: "Calculate",
+      btnCalc: "Recalculate",
       exportLoadPdfBtn: "Export Summary PDF",
       exportLoadDetailedPdfBtn: "Export Detailed PDF"
     },
@@ -1260,7 +1260,7 @@
       roomNamePh: "Όνομα χώρου",
       clearRoomsBtn: "Καθαρισμός",
       tabPsychro: "Ψυχρομετρία",
-      btnCalc: "Υπολογισμός",
+      btnCalc: "Επανυπολογισμός",
       exportLoadPdfBtn: "Εξαγωγή Συνοπτικού PDF",
       exportLoadDetailedPdfBtn: "Εξαγωγή Αναλυτικού PDF"
     }
@@ -3817,6 +3817,19 @@
     });
 
     $("btnCalc")?.addEventListener("click", calcLoad);
+
+    // v13: the result follows every change in the Loads form (no stale result if Calculate is forgotten)
+    let autoCalcTimer = null;
+    const autoCalc = () => { clearTimeout(autoCalcTimer); autoCalcTimer = setTimeout(calcLoad, 250); };
+    ["input", "change"].forEach((ev) => document.addEventListener(ev, (e) => {
+      const t = e.target;
+      if (!t || !t.closest || !t.closest("#loadsMain")) return;
+      if (t.id === "devLib" || t.id === "CustomW" || t.id === "CustomDuty") return; // not applied until "Add"
+      autoCalc();
+    }));
+    document.addEventListener("click", (e) => {
+      if (e.target?.closest?.("#addWinGrp, #addDev, #addCustom, .wg-del, .dv-del")) autoCalc();
+    });
     $("recalcQuick")?.addEventListener("click", calcLoad);
 
     $("addRoomBtn")?.addEventListener("click", addCurrentRoom);
@@ -4182,7 +4195,9 @@
       s.active = -1;
       render();
       var calc = document.getElementById("btnCalc");
-      if (calc) { calc.scrollIntoView({ behavior: "smooth", block: "center" }); calc.focus({ preventScroll: true }); }
+      if (calc) calc.click(); // really calculate
+      var res = document.getElementById("result");
+      if (res) res.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     s.active = i;
@@ -4231,9 +4246,9 @@
       ? t("Now: ", "Τώρα: ") + title(active) + (active < sections.length - 1 ? " · " + t("Next: ", "Μετά: ") + title(active + 1) : "")
       : t("All sections done — run the calculation.", "Όλες οι ενότητες έτοιμες — τρέξε τον υπολογισμό.");
     var remain = sections.length - doneCount;
-    if (remainEl) remainEl.textContent = remain > 0
+    if (remainEl) remainEl.textContent = t("The result updates automatically with every change. ", "Το αποτέλεσμα ενημερώνεται αυτόματα με κάθε αλλαγή. ") + (remain > 0
       ? t(remain + " sections still on default values.", "Απομένουν " + remain + " ενότητες με προεπιλεγμένες τιμές.")
-      : t("All sections checked.", "Όλες οι ενότητες ελέγχθηκαν.");
+      : t("All sections checked.", "Όλες οι ενότητες ελέγχθηκαν."));
     updateBar();
   }
 
