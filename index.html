@@ -166,14 +166,9 @@
       padding: 0;
     }
 
+    /* whole page scrolls; the right column is sticky and follows the scroll (see LC-UI guided flow script) */
     @media (min-width: 1120px) {
-      .workspace > .side,
-      .workspace > .main {
-        max-height: calc(100vh - 24px);
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        padding-right: 4px;
-      }
+      .workspace > .side { position: sticky; top: 16px; }
     }
 
     /* ---- section cards ---- */
@@ -273,6 +268,26 @@
     #loadsMain > .section.lc-active select:not(:disabled),
     #loadsMain > .section:focus-within input:not(:disabled),
     #loadsMain > .section:focus-within select:not(:disabled) { background-color: #FFFFFF; }
+
+    .lc-note {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin: 0 0 14px; padding: 10px 14px; border-radius: 12px;
+      background: var(--accent-soft); color: var(--accent-ink); font-size: 0.9rem;
+    }
+    .lc-note[hidden] { display: none; }
+    .lc-note span { flex: 1 1 260px; }
+    .lc-note button { width: auto; min-height: 36px; padding: 0 12px; }
+    .lc-inputs { margin-top: 4px; }
+    .lc-inputs summary { cursor: pointer; font-weight: 600; font-size: 0.86rem; color: var(--accent-ink); }
+    .lc-intable { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    .lc-intable td { padding: 4px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    .lc-intable td:first-child { color: var(--muted); padding-right: 10px; white-space: pre; }
+    .lc-intable tr.grp th { text-align: left; padding: 10px 0 4px; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-2); }
+    .lc-foot { margin-top: 6px; font-size: 0.76rem; color: var(--muted); }
+    .kpi-sub { font-size: 0.8rem; color: var(--accent-ink); font-family: var(--mono); }
+
+    /* geometry input method */
+    body[data-geo="area"] .geo-dims, body:not([data-geo="area"]) .geo-area { display: none; }
 
     /* ---- grid ---- */
     .grid { display: grid; gap: 14px 16px; }
@@ -400,6 +415,10 @@
       font-size: 0.88rem;
     }
     .rowline span:last-child { font-family: var(--mono); font-weight: 600; }
+    .rowline span:first-child { flex: 1 1 auto; }
+    .rl-bar { flex: 0 0 64px; align-self: center; height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+    .rl-bar b { display: block; height: 100%; background: var(--accent); }
+    #pie { display: none; } /* chart replaced by the percentage bars in the rows; canvas kept for compatibility */
 
     .muted { color: var(--muted); }
 
@@ -651,6 +670,7 @@
     </div>
   </div>
 
+  <div id="lcNote" class="lc-note" hidden></div>
   <div class="tabs" id="tabsBar">
     <button id="tabLoads" class="tab-btn active" type="button">Φορτία</button>
     <button id="tabPsychro" class="tab-btn" type="button">Ψυχρομετρία</button>
@@ -663,7 +683,7 @@
       <div class="mini">
         <div style="font-weight:700;margin-bottom:6px" id="spaceMgrTitle">Σύνθεση Κτιρίου (Χώροι)</div>
         <div style="margin-bottom:8px">
-          <label id="projectNameLabel" for="projectName">Project / Study Name</label>
+          <label id="projectNameLabel" for="projectName">Όνομα έργου ή μελέτης</label>
           <input id="projectName" type="text" placeholder="Untitled Study" />
         </div>
         <div class="grid cols-2" style="margin-bottom:8px">
@@ -674,7 +694,15 @@
           <div><button id="exportLoadPdfBtn" class="ghost" type="button">Export Summary PDF</button></div>
           <div><button id="exportLoadDetailedPdfBtn" class="ghost" type="button">Export Detailed PDF</button></div>
         </div>
-        <div style="margin-bottom:8px"><button id="clearRoomsBtn" class="ghost" type="button">Καθαρισμός</button></div>
+        <div class="grid cols-2" style="margin-bottom:8px">
+          <div><button id="lcSaveProj" class="primary" type="button">Save project file / Αποθήκευση έργου</button></div>
+          <div><button id="lcOpenProj" class="ghost" type="button">Open project file / Άνοιγμα έργου</button></div>
+        </div>
+        <input id="lcOpenFile" type="file" accept=".html,.htm,.json,application/json,text/html" hidden>
+        <div class="grid cols-2" style="margin-bottom:8px">
+          <div><button id="lcNewProj" class="ghost" type="button">New study / Νέα μελέτη</button></div>
+          <div><button id="clearRoomsBtn" class="ghost" type="button">Καθαρισμός</button></div>
+        </div>
         <div id="spacesTree" class="muted">Δεν έχουν προστεθεί χώροι.</div>
         <div id="buildingTotals" class="hintline"></div>
       </div>
@@ -720,24 +748,24 @@
         <h2>Operation / Λειτουργία</h2>
         <div class="grid cols-3">
           <div>
-            <label>Mode / Λειτουργία</label>
+            <label for="Mode">Mode / Λειτουργία</label>
             <select id="Mode">
               <option value="cool" selected>Cooling / Ψύξη</option>
               <option value="heat">Heating / Θέρμανση</option>
             </select>
-            <div class="desc">Heating mode uses warm color theme automatically.</div>
+            <div class="desc">Heating uses a warm colour theme. / Στη θέρμανση το χρώμα γίνεται πορτοκαλί.</div>
           </div>
           <div>
-            <label>Units / Μονάδες</label>
+            <label for="Units">Units / Μονάδες</label>
             <select id="Units">
-              <option value="W" selected>W</option>
-              <option value="kW">kW</option>
+              <option value="kW" selected>kW</option>
+              <option value="BTU/h">BTU/h</option>
             </select>
           </div>
           <div>
-            <label>City preset / Πόλη</label>
+            <label for="city">City preset / Πόλη</label>
             <select id="city">
-              <option value="Athens|36|40">Athens (36 C / 40%)</option>
+              <option value="Athens|36|40" selected>Athens (36 C / 40%)</option>
               <option value="Thessaloniki|35|50">Thessaloniki (35 C / 50%)</option>
               <option value="Patra|34|55">Patra (34 C / 55%)</option>
               <option value="Heraklion|33|60">Heraklion (33 C / 60%)</option>
@@ -749,20 +777,29 @@
 
       <div class="section">
         <h2>Geometry / Γεωμετρία</h2>
-        <div class="grid cols-3">
-          <div><label>Length [m] / Μήκος</label><input type="number" id="L" step="0.1" value="6"></div>
-          <div><label>Width [m] / Πλάτος</label><input type="number" id="W" step="0.1" value="4.5"></div>
-          <div><label>Height [m] / Ύψος</label><input type="number" id="H" step="0.1" value="2.8"></div>
+        <div class="grid cols-4">
+          <div>
+            <label for="GeoMode">Input method / Τρόπος εισαγωγής</label>
+            <select id="GeoMode">
+              <option value="dims" selected>Length × width / Μήκος × πλάτος</option>
+              <option value="area">Floor area / Εμβαδόν δαπέδου</option>
+            </select>
+          </div>
+          <div class="geo-dims"><label for="L">Length [m] / Μήκος [m]</label><input type="number" id="L" step="0.1" value="6"></div>
+          <div class="geo-dims"><label for="W">Width [m] / Πλάτος [m]</label><input type="number" id="W" step="0.1" value="4.5"></div>
+          <div class="geo-area"><label for="Afloor">Floor area [m²] / Εμβαδόν δαπέδου [m²]</label><input type="number" id="Afloor" step="0.1" value="27"></div>
+          <div><label for="H">Height [m] / Ύψος [m]</label><input type="number" id="H" step="0.1" value="2.8"></div>
         </div>
+        <div id="geoInfo" class="hintline"></div>
       </div>
 
       <div class="section">
         <h2>Design Conditions / Συνθήκες Σχεδιασμού</h2>
         <div class="grid cols-2">
-          <div><label>Indoor Temp [degC]</label><input id="Tin" type="number" step="0.1" value="24"></div>
-          <div><label>Indoor RH [%]</label><input id="RHin" type="number" step="1" value="45"></div>
-          <div><label>Outdoor Temp [degC]</label><input id="Tout" type="number" step="0.1" value="36"></div>
-          <div><label>Outdoor RH [%]</label><input id="RHout" type="number" step="1" value="40"></div>
+          <div><label for="Tin">Indoor temperature [°C] / Εσωτερική θερμοκρασία [°C]</label><input id="Tin" type="number" step="0.1" value="24"></div>
+          <div><label for="RHin">Indoor RH [%] / Εσωτερική σχετική υγρασία [%]</label><input id="RHin" type="number" step="1" value="45"></div>
+          <div><label for="Tout">Outdoor temperature [°C] / Εξωτερική θερμοκρασία [°C]</label><input id="Tout" type="number" step="0.1" value="36"></div>
+          <div><label for="RHout">Outdoor RH [%] / Εξωτερική σχετική υγρασία [%]</label><input id="RHout" type="number" step="1" value="40"></div>
         </div>
       </div>
 
@@ -770,33 +807,23 @@
         <h2>Walls / Τοίχοι</h2>
         <div class="grid cols-3">
           <div>
-            <label>Wall U preset [W/m²K]</label>
-            <select id="UwallPreset">
-              <option value="1.80">Old masonry (1.80)</option>
-              <option value="1.20">Single brick + plaster (1.20)</option>
-              <option value="1.00">Double wall uninsulated (1.00)</option>
-              <option value="0.70" selected>Insulated 5 cm EPS (0.70)</option>
-              <option value="0.45">Insulated 8 cm EPS (0.45)</option>
-              <option value="0.35">Insulated 10 cm EPS (0.35)</option>
-              <option value="0.25">High insulation 15 cm EPS (0.25)</option>
-              <option value="0.55">Industrial PU panel 40 mm (0.55)</option>
-              <option value="0.38">Industrial PU/PIR panel 60 mm (0.38)</option>
-              <option value="0.28">Industrial PU/PIR panel 80 mm (0.28)</option>
-              <option value="0.22">Industrial PU/PIR panel 100 mm (0.22)</option>
-              <option value="0.65">Mineral wool panel 50 mm (0.65)</option>
-              <option value="0.48">Mineral wool panel 80 mm (0.48)</option>
-              <option value="0.45">Concrete sandwich panel (0.45)</option>
-              <option value="0.90">Precast concrete no insulation (0.90)</option>
-              <option value="custom">Custom</option>
-            </select>
+            <label for="UwallPreset">External wall build-up [W/m²K] / Εξωτερικός τοίχος — διατομή [W/m²K]</label>
+            <select id="UwallPreset"></select>
           </div>
-          <div><label>Wall U custom [W/m²K]</label><input id="UwallCustom" type="number" step="0.01" value="0.70" disabled></div>
-          <div><label>External wall length [m]</label><input id="LwallExt" type="number" step="0.1" value="8"></div>
+          <div><label for="UwallCustom">External wall U, custom [W/m²K] / U εξωτ. τοίχου, χειροκίνητο [W/m²K]</label><input id="UwallCustom" type="number" step="0.01" value="0.70" disabled></div>
+          <div><label for="LwallExt">External wall length [m] / Μήκος εξωτερικών τοίχων [m]</label><input id="LwallExt" type="number" step="0.1" value="8"></div>
         </div>
         <div class="grid cols-3" style="margin-top:8px">
-          <div><label>Wall length to unconditioned zone [m]</label><input id="LwallUnh" type="number" step="0.1" value="0"></div>
-          <div><label>Adjacent zone temp [degC]</label><input id="Tadj" type="number" step="0.5" value="30"></div>
-          <div><label>Height mirror [m]</label><input id="H_display" type="number" value="2.8" disabled></div>
+          <div>
+            <label for="UwallUnhPreset">Wall to unconditioned space [W/m²K] / Τοίχος προς μη κλιματιζόμενο χώρο [W/m²K]</label>
+            <select id="UwallUnhPreset"></select>
+          </div>
+          <div><label for="UwallUnhCustom">U to unconditioned, custom [W/m²K] / U προς μη κλιμ., χειροκίνητο [W/m²K]</label><input id="UwallUnhCustom" type="number" step="0.01" value="0.70" disabled></div>
+          <div><label for="LwallUnh">Wall length to unconditioned space [m] / Μήκος τοίχων προς μη κλιματιζόμενο [m]</label><input id="LwallUnh" type="number" step="0.1" value="0"></div>
+        </div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div><label for="Tadj">Unconditioned space temperature [°C] / Θερμοκρασία μη κλιματιζόμενου χώρου [°C]</label><input id="Tadj" type="number" step="0.5" value="30"></div>
+          <div><label for="H_display">Wall height (from geometry) [m] / Ύψος τοίχου (από γεωμετρία) [m]</label><input id="H_display" type="number" value="2.8" disabled></div>
         </div>
         <div id="wallPctHint" class="hintline"></div>
       </div>
@@ -805,103 +832,56 @@
         <h2>Windows / Υαλοστάσια</h2>
         <div class="grid cols-3">
           <div>
-            <label>Window U preset [W/m²K]</label>
-            <select id="UwinPreset">
-              <option value="5.7">Single clear (5.7)</option>
-              <option value="2.8" selected>Double clear (2.8)</option>
-              <option value="1.6">Double low-e (1.6)</option>
-              <option value="1.3">Double low-e + Argon (1.3)</option>
-              <option value="1.0">Triple low-e (1.0)</option>
-              <option value="0.9">Triple low-e + Argon (0.9)</option>
-              <option value="0.8">High-performance triple (0.8)</option>
-              <option value="1.9">Industrial frame thermally broken (1.9)</option>
-              <option value="custom">Custom</option>
-            </select>
+            <label for="UwinPreset">Window type [W/m²K] / Τύπος κουφώματος [W/m²K]</label>
+            <select id="UwinPreset"></select>
           </div>
-          <div><label>Window U custom [W/m²K]</label><input id="UwinCustom" type="number" step="0.1" value="2.8" disabled></div>
+          <div><label for="UwinCustom">Window U, custom [W/m²K] / U κουφώματος, χειροκίνητο [W/m²K]</label><input id="UwinCustom" type="number" step="0.1" value="2.8" disabled></div>
           <div>
-            <label>SHGC preset [-]</label>
-            <select id="SHGCpreset">
-              <option value="0.86">Single clear (~0.86)</option>
-              <option value="0.70" selected>Double clear (~0.70)</option>
-              <option value="0.55">Double low-e (~0.55)</option>
-              <option value="0.40">Triple low-e (~0.40)</option>
-              <option value="0.30">Solar-control glass (~0.30)</option>
-            </select>
+            <label for="SHGCpreset">Solar factor SHGC [-] / Ηλιακός συντελεστής SHGC [-]</label>
+            <select id="SHGCpreset"></select>
           </div>
         </div>
 
-        <div style="margin-top:8px"><button class="ghost" id="addWinGrp" type="button">+ Add window group</button></div>
+        <div style="margin-top:8px"><button class="ghost" id="addWinGrp" type="button">+ Add window group / + Ομάδα υαλοστασίων</button></div>
         <table class="table" id="winTable" style="margin-top:8px">
-          <thead><tr><th>Orientation</th><th>Area [m²]</th><th>Shading factor [-]</th><th></th></tr></thead>
+          <thead><tr><th>Orientation / Προσανατολισμός</th><th>Area [m²] / Επιφάνεια [m²]</th><th>Shading factor [-] / Συντελεστής σκίασης [-]</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
-        <div class="desc">Shading: 1.0 none, 0.7 medium, 0.4 strong. Orientations: N NE E SE S SW W NW.</div>
+        <div class="desc">Shading: 1.0 none, 0.7 medium, 0.4 strong, 0 fully shaded. "To unconditioned space" = internal window: conduction to the unconditioned space temperature, no solar gain, area deducted from the walls to unconditioned space. / Σκίαση: 1,0 καμία, 0,7 μέτρια, 0,4 ισχυρή, 0 πλήρης. «Προς μη κλιματιζόμενο» = εσωτερικό παράθυρο: αγωγιμότητα με τη θερμοκρασία του μη κλιματιζόμενου χώρου, χωρίς ηλιακά κέρδη, η επιφάνεια αφαιρείται από τους τοίχους προς μη κλιματιζόμενο.</div>
       </div>
       <div class="section">
         <h2>Roof & Floor / Οροφή & Δάπεδο</h2>
 
         <div class="grid cols-3">
           <div>
-            <label>Roof U preset [W/m²K]</label>
-            <select id="UroofPreset">
-              <option value="0.05">No exposed roof / internal ceiling (0.05)</option>
-              <option value="1.00">Uninsulated slab (1.00)</option>
-              <option value="0.50">XPS 5 cm (0.50)</option>
-              <option value="0.35" selected>XPS 8 cm (0.35)</option>
-              <option value="0.25">XPS 12 cm (0.25)</option>
-              <option value="0.20">XPS 15 cm (0.20)</option>
-              <option value="0.18">XPS 20 cm (0.18)</option>
-              <option value="2.40">Metal deck no insulation (2.40)</option>
-              <option value="0.55">Metal + PU panel 40 mm (0.55)</option>
-              <option value="0.38">Metal + PU/PIR panel 60 mm (0.38)</option>
-              <option value="0.28">Metal + PU/PIR panel 80 mm (0.28)</option>
-              <option value="0.22">Metal + PU/PIR panel 100 mm (0.22)</option>
-              <option value="0.65">Metal + mineral wool 50 mm (0.65)</option>
-              <option value="0.48">Metal + mineral wool 80 mm (0.48)</option>
-              <option value="custom">Custom</option>
-            </select>
+            <label for="UroofPreset">Roof or ceiling build-up [W/m²K] / Οροφή — διατομή [W/m²K]</label>
+            <select id="UroofPreset"></select>
           </div>
-          <div><label>Roof U custom [W/m²K]</label><input id="UroofCustom" type="number" step="0.01" value="0.35" disabled></div>
-          <div><label>% roof to outdoor [%]</label><input id="RoofPctExt" type="number" step="1" value="100"></div>
+          <div><label for="UroofCustom">Roof U, custom [W/m²K] / U οροφής, χειροκίνητο [W/m²K]</label><input id="UroofCustom" type="number" step="0.01" value="0.35" disabled></div>
+          <div><label for="RoofPctExt">Roof to outdoor [%] / Οροφή προς εξωτερικό [%]</label><input id="RoofPctExt" type="number" step="1" value="100"></div>
         </div>
 
         <div class="grid cols-3" style="margin-top:8px">
-          <div><label>% roof to unconditioned zone [%]</label><input id="RoofPctUnh" type="number" step="1" value="0"></div>
-          <div><label>Unconditioned zone temp above [degC]</label><input id="Tattic" type="number" step="0.5" value="35"></div>
-          <div><label>% roof to conditioned zone [%]</label><input id="RoofPctHeated" type="number" step="1" value="0"></div>
+          <div><label for="RoofPctUnh">Roof to unconditioned space [%] / Οροφή προς μη κλιματιζόμενο [%]</label><input id="RoofPctUnh" type="number" step="1" value="0"></div>
+          <div><label for="Tattic">Unconditioned space above [°C] / Θερμοκρασία μη κλιμ. χώρου από πάνω [°C]</label><input id="Tattic" type="number" step="0.5" value="35"></div>
+          <div><label for="RoofPctHeated">Roof to conditioned space [%] / Οροφή προς κλιματιζόμενο [%]</label><input id="RoofPctHeated" type="number" step="1" value="0"></div>
         </div>
         <div id="roofPctHint" class="hintline"></div>
 
         <div class="grid cols-3" style="margin-top:10px">
           <div>
-            <label>Floor U preset [W/m²K]</label>
-            <select id="UfloorPreset">
-              <option value="p|1.50">Pilotis uninsulated (1.50)</option>
-              <option value="p|0.90">Pilotis light insulation 3 cm (0.90)</option>
-              <option value="p|0.50">Pilotis insulation 5 cm (0.50)</option>
-              <option value="p|0.35">Pilotis insulation 8 cm (0.35)</option>
-              <option value="p|0.25">Pilotis insulation 12 cm (0.25)</option>
-              <option value="p|0.22">Pilotis industrial panel 100 mm (0.22)</option>
-              <option value="g|1.20">Ground floor uninsulated (1.20)</option>
-              <option value="g|0.80">Ground floor light insulation 3 cm (0.80)</option>
-              <option value="g|0.50" selected>Ground floor insulation 5 cm (0.50)</option>
-              <option value="g|0.35">Ground floor insulation 8 cm (0.35)</option>
-              <option value="g|0.25">Ground floor insulation 12 cm (0.25)</option>
-              <option value="g|0.20">Ground floor insulation 15 cm (0.20)</option>
-              <option value="g|0.30">Industrial slab on ground (0.30)</option>
-              <option value="custom">Custom</option>
-            </select>
+            <label for="UfloorPreset">Floor build-up [W/m²K] / Δάπεδο — διατομή [W/m²K]</label>
+            <select id="UfloorPreset"></select>
           </div>
-          <div><label>Floor U custom [W/m²K]</label><input id="UfloorCustom" type="number" step="0.01" value="0.50" disabled></div>
-          <div><label>% floor to ground/pilotis [%]</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
+          <div><label for="UfloorCustom">Floor U, custom [W/m²K] / U δαπέδου, χειροκίνητο [W/m²K]</label><input id="UfloorCustom" type="number" step="0.01" value="0.50" disabled></div>
+          <div><label for="FloorPctGround">Floor to ground / pilotis [%] / Δάπεδο προς έδαφος / πιλοτή [%]</label><input id="FloorPctGround" type="number" step="1" value="100"></div>
         </div>
         <div id="floorPresetHint" class="hintline"></div>
 
         <div class="grid cols-3" style="margin-top:8px">
-          <div><label>% floor to unconditioned zone [%]</label><input id="FloorPctUnh" type="number" step="1" value="0"></div>
-          <div><label>% floor to conditioned zone [%]</label><input id="FloorPctHeated" type="number" step="1" value="0"></div>
-          <div><label>Ground temp [degC]</label><input id="Tground" type="number" step="0.5" value="15"></div>
+          <div><label for="FloorPctUnh">Floor to unconditioned space [%] / Δάπεδο προς μη κλιματιζόμενο [%]</label><input id="FloorPctUnh" type="number" step="1" value="0"></div>
+          <div><label for="FloorPctHeated">Floor to conditioned space [%] / Δάπεδο προς κλιματιζόμενο [%]</label><input id="FloorPctHeated" type="number" step="1" value="0"></div>
+          <div><label for="Tground">Ground temperature [°C] / Θερμοκρασία εδάφους [°C]</label><input id="Tground" type="number" step="0.5" value="15"></div>
         </div>
         <div id="floorPctHint" class="hintline"></div>
       </div>
@@ -910,68 +890,72 @@
         <h2>Ventilation / Αερισμός</h2>
         <div class="grid cols-3">
           <div>
-            <label>Infiltration ACH [1/h]</label>
-            <select id="ACHinf">
-              <option value="0.3">Tight envelope (~0.3)</option>
-              <option value="0.7" selected>Moderate (~0.7)</option>
-              <option value="1.2">Leaky/old (~1.2)</option>
-            </select>
+            <label for="ACHinf">Infiltration ACH [1/h] / Διείσδυση ACH [1/h]</label>
+            <select id="ACHinf"></select>
           </div>
           <div>
-            <label>Natural ventilation ACH [1/h]</label>
-            <select id="ACHnat">
-              <option value="0">Windows closed</option>
-              <option value="1">Tilt-open (~1)</option>
-              <option value="3">Open windows (~3)</option>
-            </select>
+            <label for="ACHnat">Natural ventilation ACH [1/h] / Φυσικός αερισμός ACH [1/h]</label>
+            <select id="ACHnat"></select>
           </div>
           <div>
-            <label>Mechanical ventilation mode</label>
-            <select id="MechMode">
-              <option value="ach">Use ACH</option>
-              <option value="flow">Use m3/h</option>
+            <label for="InfSource">Infiltration air comes from / Ο αέρας διείσδυσης έρχεται από</label>
+            <select id="InfSource">
+              <option value="out" selected>Outdoors / Εξωτερικό</option>
+              <option value="adj">Unconditioned space / Μη κλιματιζόμενο χώρο</option>
             </select>
           </div>
         </div>
 
-        <div class="grid cols-2" style="margin-top:8px">
-          <div><label>Mechanical ACH [1/h]</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
-          <div><label>Mechanical airflow [m3/h]</label><input id="Qmech" type="number" step="10" value="0"></div>
+        <div class="grid cols-3" style="margin-top:8px">
+          <div>
+            <label for="MechMode">Mechanical ventilation input / Μηχανικός αερισμός ως</label>
+            <select id="MechMode"></select>
+          </div>
+          <div><label for="ACHmech">Mechanical ACH [1/h] / Μηχανικός αερισμός ACH [1/h]</label><input id="ACHmech" type="number" step="0.1" value="0"></div>
+          <div><label for="Qmech">Mechanical airflow [m³/h] / Παροχή μηχανικού αερισμού [m³/h]</label><input id="Qmech" type="number" step="10" value="0"></div>
         </div>
+        <div class="desc">Mechanical ventilation is always outdoor air. / Ο μηχανικός αερισμός είναι πάντα νωπός εξωτερικός αέρας.</div>
       </div>
 
       <div class="section">
         <h2>Internal Gains / Εσωτερικά Φορτία</h2>
         <div class="grid cols-3">
-          <div><label>Occupants [#]</label><input id="nPeople" type="number" step="1" value="2"></div>
+          <div><label for="nPeople">Occupants [-] / Άτομα [-]</label><input id="nPeople" type="number" step="1" value="2"></div>
           <div>
-            <label>Occupancy activity [W/person]</label>
-            <select id="PeopleActivity">
-              <option value="75|55">Seated (S=75, L=55)</option>
-              <option value="100|75" selected>Light activity (100/75)</option>
-              <option value="130|95">Moderate activity (130/95)</option>
-              <option value="160|120">Industrial light work (160/120)</option>
-            </select>
+            <label for="PeopleActivity">Activity, sensible / latent [W/person] / Δραστηριότητα, αισθητό / λανθάνον [W/άτομο]</label>
+            <select id="PeopleActivity"></select>
           </div>
-          <div><label>Lighting density [W/m²]</label><input id="LightingWm2" type="number" step="1" value="8"></div>
         </div>
+        <div class="grid cols-4" style="margin-top:8px">
+          <div>
+            <label for="LightingPreset">Lighting type / Τύπος φωτισμού</label>
+            <select id="LightingPreset"></select>
+          </div>
+          <div><label for="LightingWm2">Lighting [W/m²] / Φωτισμός [W/m²]</label><input id="LightingWm2" type="number" step="1" value="8"></div>
+          <div>
+            <label for="EquipPreset">Equipment by area / Εξοπλισμός ανά m²</label>
+            <select id="EquipPreset"></select>
+          </div>
+          <div><label for="EquipWm2">Equipment [W/m²] / Εξοπλισμός [W/m²]</label><input id="EquipWm2" type="number" step="1" value="0"></div>
+        </div>
+        <div class="desc">Use W/m² for general equipment, or list specific devices below (or both — they add up). / Βάλε W/m² για γενικό εξοπλισμό ή πρόσθεσε συγκεκριμένες συσκευές παρακάτω (ή και τα δύο — αθροίζονται).</div>
 
         <div class="section" style="margin-top:10px">
           <h2>Equipment / Συσκευές</h2>
           <table class="table" id="devTable">
-            <thead><tr><th>Device</th><th>Power [W]</th><th>Duty factor [-]</th><th></th></tr></thead>
+            <thead><tr><th>Device / Συσκευή</th><th>Heat gain [W] / Θερμικό κέρδος [W]</th><th>Duty factor [-] / Συντελεστής λειτουργίας [-]</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
 
           <div class="grid cols-2" style="margin-top:8px">
-            <div><select id="devLib"></select></div>
-            <div><button id="addDev" class="ghost" type="button">+ Add selected device</button></div>
+            <div><label for="devLib">Device library / Βιβλιοθήκη συσκευών</label><select id="devLib"></select></div>
+            <div><label>&nbsp;</label><button id="addDev" class="ghost" type="button">+ Add selected device / + Προσθήκη συσκευής</button></div>
           </div>
 
           <div class="grid cols-3" style="margin-top:8px">
-            <div><label>Custom power [W]</label><input id="CustomW" type="number" step="10" value="0"></div>
-            <div><label>Custom duty [0..1]</label><input id="CustomDuty" type="number" step="0.05" value="1"></div>
-            <div><label>Action</label><button id="addCustom" class="ghost" type="button">Add custom load</button></div>
+            <div><label for="CustomW">Other load [W] / Άλλο φορτίο [W]</label><input id="CustomW" type="number" step="10" value="0"></div>
+            <div><label for="CustomDuty">Duty factor [0..1] / Συντελεστής λειτουργίας [0..1]</label><input id="CustomDuty" type="number" step="0.05" value="1"></div>
+            <div><label>&nbsp;</label><button id="addCustom" class="ghost" type="button">Add load / Προσθήκη φορτίου</button></div>
           </div>
         </div>
       </div>
@@ -1150,7 +1134,12 @@
     return clamp((100 * Pv) / Math.max(1e-9, Ps), 0, 100);
   };
 
-  const fmtPower = (x) => (str("Units", "W") === "kW" ? `${(x / 1000).toFixed(2)} kW` : `${Math.round(x)} W`);
+  const BTU_PER_W = 3.412142;
+  const groupThousands = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f");
+  // Display units: kW (default) or BTU/h. Older saved studies with "W" are shown in kW.
+  const fmtPower = (x) => (str("Units", "kW") === "BTU/h" ? `${groupThousands(x * BTU_PER_W)} BTU/h` : `${(x / 1000).toFixed(2)} kW`);
+  // Specific load per floor area, always both W/m² and BTU/h·m²
+  const fmtSpecific = (W, A) => (A > 0 ? `${Math.round(W / A)} W/m² · ${groupThousands((W * BTU_PER_W) / A)} BTU/h·m²` : "—");
 
   let currentLang = "el";
   let spaces = [];
@@ -1161,13 +1150,13 @@
   let selectedRoomLoadedSignature = "";
 
   const INPUT_IDS = [
-    "Mode","Units","city","L","W","H","Tin","RHin","Tout","RHout",
-    "UwallPreset","UwallCustom","LwallExt","LwallUnh","Tadj",
+    "Mode","Units","city","GeoMode","L","W","Afloor","H","Tin","RHin","Tout","RHout",
+    "UwallPreset","UwallCustom","LwallExt","UwallUnhPreset","UwallUnhCustom","LwallUnh","Tadj",
     "UwinPreset","UwinCustom","SHGCpreset",
     "UroofPreset","UroofCustom","RoofPctExt","RoofPctUnh","RoofPctHeated","Tattic",
     "UfloorPreset","UfloorCustom","FloorPctGround","FloorPctUnh","FloorPctHeated","Tground",
-    "ACHinf","ACHnat","MechMode","ACHmech","Qmech",
-    "nPeople","PeopleActivity","LightingWm2",
+    "ACHinf","ACHnat","InfSource","MechMode","ACHmech","Qmech",
+    "nPeople","PeopleActivity","LightingWm2","EquipWm2",
     "PS_ViewMode","PS_Mode","PS_Tsa","PS_SA_RH_mode","PS_RHsa","PS_SA_manual","PS_Pressurization","PS_CoilMode","PS_BF","PS_ADP","PS_LWT"
   ];
 
@@ -1185,7 +1174,7 @@
       assumpTitle: "Active assumptions",
       formulasTitle: "Model equations",
       spaceMgrTitle: "Building Spaces",
-      projectNameLabel: "Project / Study Name",
+      projectNameLabel: "Project or study name",
       projectNamePh: "Untitled Study",
       quickTitle: "Quick actions",
       checksTitle: "Input checks",
@@ -1217,7 +1206,7 @@
       assumpTitle: "Ενεργές παραδοχές",
       formulasTitle: "Τύποι που χρησιμοποιούνται",
       spaceMgrTitle: "Σύνθεση Κτιρίου (Χώροι)",
-      projectNameLabel: "Όνομα Έργου / Μελέτης",
+      projectNameLabel: "Όνομα έργου ή μελέτης",
       projectNamePh: "Ανώνυμη Μελέτη",
       quickTitle: "Γρήγορες ενέργειες",
       checksTitle: "Έλεγχοι εισόδων",
@@ -1246,8 +1235,8 @@
       { v: "heat", en: "Heating", el: "Θέρμανση" }
     ],
     Units: [
-      { v: "W", en: "W", el: "W" },
-      { v: "kW", en: "kW", el: "kW" }
+      { v: "kW", en: "kW", el: "kW" },
+      { v: "BTU/h", en: "BTU/h", el: "BTU/h" }
     ],
     city: [
       { v: "Athens|36|40", en: "Athens (36 C / 40%)", el: "Αθήνα (36 C / 40%)" },
@@ -1256,73 +1245,222 @@
       { v: "Heraklion|33|60", en: "Heraklion (33 C / 60%)", el: "Ηράκλειο (33 C / 60%)" },
       { v: "Custom", en: "Custom", el: "Χειροκίνητα" }
     ],
+    GeoMode: [
+      { v: "dims", en: "Length × width", el: "Μήκος × πλάτος" },
+      { v: "area", en: "Floor area", el: "Εμβαδόν δαπέδου" }
+    ],
     UwallPreset: [
-      { v: "1.80", en: "Old masonry (1.80)", el: "Παλιά τοιχοποιία (1.80)" },
+      { group: { en: "Existing / uninsulated", el: "Υφιστάμενα / αμόνωτα" } },
+      { v: "1.80", en: "Old stone/brick masonry (1.80)", el: "Παλιά τοιχοποιία (1.80)" },
       { v: "1.20", en: "Single brick + plaster (1.20)", el: "Μονή οπτοπλινθοδομή + σοβάς (1.20)" },
       { v: "1.00", en: "Double wall uninsulated (1.00)", el: "Διπλός τοίχος χωρίς μόνωση (1.00)" },
+      { v: "1.30", en: "Double brick 9+9 with air gap, uninsulated (1.30)", el: "Διπλή οπτοπλινθοδομή 9+9 με διάκενο, αμόνωτη (1.30)" },
+      { v: "3.10", en: "Concrete 25 cm, uninsulated (3.10)", el: "Σκυρόδεμα 25 cm, αμόνωτο (3.10)" },
+      { v: "2.40", en: "Hollow concrete block 20 cm, uninsulated (2.40)", el: "Τσιμεντόλιθος 20 cm, αμόνωτος (2.40)" },
+      { v: "0.90", en: "Precast concrete no insulation (0.90)", el: "Προκατασκευασμένο σκυρόδεμα χωρίς μόνωση (0.90)" },
+      { group: { en: "Insulated — generic", el: "Μονωμένα — γενικά" } },
       { v: "0.70", en: "Insulated 5 cm EPS (0.70)", el: "Μόνωση EPS 5 cm (0.70)" },
       { v: "0.45", en: "Insulated 8 cm EPS (0.45)", el: "Μόνωση EPS 8 cm (0.45)" },
       { v: "0.35", en: "Insulated 10 cm EPS (0.35)", el: "Μόνωση EPS 10 cm (0.35)" },
       { v: "0.25", en: "High insulation 15 cm EPS (0.25)", el: "Υψηλή μόνωση EPS 15 cm (0.25)" },
-      { v: "0.55", en: "Industrial PU panel 40 mm (0.55)", el: "Βιομηχανικό panel PU 40 mm (0.55)" },
-      { v: "0.38", en: "Industrial PU/PIR panel 60 mm (0.38)", el: "Βιομηχανικό panel PU/PIR 60 mm (0.38)" },
-      { v: "0.28", en: "Industrial PU/PIR panel 80 mm (0.28)", el: "Βιομηχανικό panel PU/PIR 80 mm (0.28)" },
-      { v: "0.22", en: "Industrial PU/PIR panel 100 mm (0.22)", el: "Βιομηχανικό panel PU/PIR 100 mm (0.22)" },
-      { v: "0.65", en: "Mineral wool panel 50 mm (0.65)", el: "Panel πετροβάμβακα 50 mm (0.65)" },
-      { v: "0.48", en: "Mineral wool panel 80 mm (0.48)", el: "Panel πετροβάμβακα 80 mm (0.48)" },
-      { v: "0.45", en: "Concrete sandwich panel (0.45)", el: "Πάνελ sandwich σκυροδέματος (0.45)" },
+      { group: { en: "Double brick, insulation in the cavity", el: "Διπλή οπτοπλινθοδομή, μόνωση στο διάκενο" } },
+      { v: "0.47", en: "Double brick + 5 cm XPS (0.47)", el: "Διπλή οπτοπλινθοδομή + XPS 5 cm (0.47)" },
+      { v: "0.37", en: "Double brick + 7 cm XPS (0.37)", el: "Διπλή οπτοπλινθοδομή + XPS 7 cm (0.37)" },
+      { v: "0.28~dw", en: "Double brick + 10 cm XPS (0.28)", el: "Διπλή οπτοπλινθοδομή + XPS 10 cm (0.28)" },
+      { group: { en: "External insulation (ETICS)", el: "Εξωτερική θερμοπρόσοψη (ETICS)" } },
+      { v: "0.44", en: "Brick 20 cm + graphite EPS 5 cm (0.44)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 5 cm (0.44)" },
+      { v: "0.31", en: "Brick 20 cm + graphite EPS 8 cm (0.31)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 8 cm (0.31)" },
+      { v: "0.26", en: "Brick 20 cm + graphite EPS 10 cm (0.26)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 10 cm (0.26)" },
+      { v: "0.22~b", en: "Brick 20 cm + graphite EPS 12 cm (0.22)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 12 cm (0.22)" },
+      { v: "0.18", en: "Brick 20 cm + graphite EPS 15 cm (0.18)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 15 cm (0.18)" },
+      { v: "0.52", en: "Concrete 25 cm + graphite EPS 5 cm (0.52)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 5 cm (0.52)" },
+      { v: "0.34", en: "Concrete 25 cm + graphite EPS 8 cm (0.34)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 8 cm (0.34)" },
+      { v: "0.28~c", en: "Concrete 25 cm + graphite EPS 10 cm (0.28)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 10 cm (0.28)" },
+      { v: "0.49", en: "Concrete block 20 cm + EPS 5 cm (0.49)", el: "Τσιμεντόλιθος 20 cm + EPS 5 cm (0.49)" },
+      { group: { en: "Lightweight blocks / internal insulation", el: "Ελαφροβαρή / εσωτερική μόνωση" } },
+      { v: "0.40", en: "Autoclaved aerated concrete 25 cm (0.40)", el: "Κυψελωτό σκυρόδεμα (τύπου Ytong) 25 cm (0.40)" },
+      { v: "0.34~a", en: "Autoclaved aerated concrete 30 cm (0.34)", el: "Κυψελωτό σκυρόδεμα (τύπου Ytong) 30 cm (0.34)" },
+      { v: "0.57", en: "Concrete + plasterboard lining with 5 cm mineral wool (0.57)", el: "Σκυρόδεμα + γυψοσανίδα με 5 cm πετροβάμβακα εσωτερικά (0.57)" },
+      { group: { en: "Industrial panels / cladding", el: "Βιομηχανικά πάνελ / επενδύσεις" } },
+      { v: "5.80", en: "Single-skin metal sheet, uninsulated (5.80)", el: "Λαμαρίνα μονής στρώσης, αμόνωτη (5.80)" },
+      { v: "0.55", en: "Industrial PU panel 40 mm (0.55)", el: "Βιομηχανικό πάνελ PU 40 mm (0.55)" },
+      { v: "0.38", en: "Industrial PU/PIR panel 60 mm (0.38)", el: "Βιομηχανικό πάνελ PU/PIR 60 mm (0.38)" },
+      { v: "0.28", en: "Industrial PU/PIR panel 80 mm (0.28)", el: "Βιομηχανικό πάνελ PU/PIR 80 mm (0.28)" },
+      { v: "0.22", en: "Industrial PU/PIR panel 100 mm (0.22)", el: "Βιομηχανικό πάνελ PU/PIR 100 mm (0.22)" },
+      { v: "0.18~p", en: "PU/PIR panel 120 mm (0.18)", el: "Πάνελ PU/PIR 120 mm (0.18)" },
+      { v: "0.14", en: "PU/PIR panel 150 mm — cold room (0.14)", el: "Πάνελ PU/PIR 150 mm — ψυκτικός θάλαμος (0.14)" },
+      { v: "0.11", en: "PU/PIR panel 200 mm — freezer room (0.11)", el: "Πάνελ PU/PIR 200 mm — θάλαμος κατάψυξης (0.11)" },
+      { v: "0.65", en: "Mineral wool panel 50 mm (0.65)", el: "Πάνελ πετροβάμβακα 50 mm (0.65)" },
+      { v: "0.48", en: "Mineral wool panel 80 mm (0.48)", el: "Πάνελ πετροβάμβακα 80 mm (0.48)" },
+      { v: "0.37~m", en: "Mineral wool panel 100 mm (0.37)", el: "Πάνελ πετροβάμβακα 100 mm (0.37)" },
+      { v: "0.32~m", en: "Mineral wool panel 120 mm (0.32)", el: "Πάνελ πετροβάμβακα 120 mm (0.32)" },
+      { v: "0.26~m", en: "Mineral wool panel 150 mm (0.26)", el: "Πάνελ πετροβάμβακα 150 mm (0.26)" },
+      { v: "0.45~s", en: "Concrete sandwich panel (0.45)", el: "Πάνελ sandwich σκυροδέματος (0.45)" },
+      { group: { en: "Internal partitions", el: "Εσωτερικά χωρίσματα" } },
+      { v: "1.85", en: "Plasterboard partition, no insulation (1.85)", el: "Χώρισμα γυψοσανίδας, αμόνωτο (1.85)" },
+      { v: "0.57~g", en: "Plasterboard partition + 5 cm mineral wool (0.57)", el: "Χώρισμα γυψοσανίδας + 5 cm πετροβάμβακα (0.57)" },
+      { v: "0.32~g", en: "Plasterboard partition + 10 cm mineral wool (0.32)", el: "Χώρισμα γυψοσανίδας + 10 cm πετροβάμβακα (0.32)" },
+      { v: "1.95", en: "Brick partition 10 cm, plastered (1.95)", el: "Οπτοπλινθοδομή 10 cm με σοβά, χώρισμα (1.95)" },
+      { group: { en: "Other", el: "Άλλο" } },
+      { v: "custom", en: "Custom", el: "Χειροκίνητο" }
+    ],
+    UwallUnhPreset: [
+      { v: "same", en: "Same as external wall", el: "Ίδιο με τον εξωτερικό τοίχο" },
+      { group: { en: "Existing / uninsulated", el: "Υφιστάμενα / αμόνωτα" } },
+      { v: "1.80", en: "Old stone/brick masonry (1.80)", el: "Παλιά τοιχοποιία (1.80)" },
+      { v: "1.20", en: "Single brick + plaster (1.20)", el: "Μονή οπτοπλινθοδομή + σοβάς (1.20)" },
+      { v: "1.00", en: "Double wall uninsulated (1.00)", el: "Διπλός τοίχος χωρίς μόνωση (1.00)" },
+      { v: "1.30", en: "Double brick 9+9 with air gap, uninsulated (1.30)", el: "Διπλή οπτοπλινθοδομή 9+9 με διάκενο, αμόνωτη (1.30)" },
+      { v: "3.10", en: "Concrete 25 cm, uninsulated (3.10)", el: "Σκυρόδεμα 25 cm, αμόνωτο (3.10)" },
+      { v: "2.40", en: "Hollow concrete block 20 cm, uninsulated (2.40)", el: "Τσιμεντόλιθος 20 cm, αμόνωτος (2.40)" },
       { v: "0.90", en: "Precast concrete no insulation (0.90)", el: "Προκατασκευασμένο σκυρόδεμα χωρίς μόνωση (0.90)" },
+      { group: { en: "Insulated — generic", el: "Μονωμένα — γενικά" } },
+      { v: "0.70", en: "Insulated 5 cm EPS (0.70)", el: "Μόνωση EPS 5 cm (0.70)" },
+      { v: "0.45", en: "Insulated 8 cm EPS (0.45)", el: "Μόνωση EPS 8 cm (0.45)" },
+      { v: "0.35", en: "Insulated 10 cm EPS (0.35)", el: "Μόνωση EPS 10 cm (0.35)" },
+      { v: "0.25", en: "High insulation 15 cm EPS (0.25)", el: "Υψηλή μόνωση EPS 15 cm (0.25)" },
+      { group: { en: "Double brick, insulation in the cavity", el: "Διπλή οπτοπλινθοδομή, μόνωση στο διάκενο" } },
+      { v: "0.47", en: "Double brick + 5 cm XPS (0.47)", el: "Διπλή οπτοπλινθοδομή + XPS 5 cm (0.47)" },
+      { v: "0.37", en: "Double brick + 7 cm XPS (0.37)", el: "Διπλή οπτοπλινθοδομή + XPS 7 cm (0.37)" },
+      { v: "0.28~dw", en: "Double brick + 10 cm XPS (0.28)", el: "Διπλή οπτοπλινθοδομή + XPS 10 cm (0.28)" },
+      { group: { en: "External insulation (ETICS)", el: "Εξωτερική θερμοπρόσοψη (ETICS)" } },
+      { v: "0.44", en: "Brick 20 cm + graphite EPS 5 cm (0.44)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 5 cm (0.44)" },
+      { v: "0.31", en: "Brick 20 cm + graphite EPS 8 cm (0.31)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 8 cm (0.31)" },
+      { v: "0.26", en: "Brick 20 cm + graphite EPS 10 cm (0.26)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 10 cm (0.26)" },
+      { v: "0.22~b", en: "Brick 20 cm + graphite EPS 12 cm (0.22)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 12 cm (0.22)" },
+      { v: "0.18", en: "Brick 20 cm + graphite EPS 15 cm (0.18)", el: "Οπτοπλινθοδομή 20 cm + γραφιτούχο EPS 15 cm (0.18)" },
+      { v: "0.52", en: "Concrete 25 cm + graphite EPS 5 cm (0.52)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 5 cm (0.52)" },
+      { v: "0.34", en: "Concrete 25 cm + graphite EPS 8 cm (0.34)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 8 cm (0.34)" },
+      { v: "0.28~c", en: "Concrete 25 cm + graphite EPS 10 cm (0.28)", el: "Σκυρόδεμα 25 cm + γραφιτούχο EPS 10 cm (0.28)" },
+      { v: "0.49", en: "Concrete block 20 cm + EPS 5 cm (0.49)", el: "Τσιμεντόλιθος 20 cm + EPS 5 cm (0.49)" },
+      { group: { en: "Lightweight blocks / internal insulation", el: "Ελαφροβαρή / εσωτερική μόνωση" } },
+      { v: "0.40", en: "Autoclaved aerated concrete 25 cm (0.40)", el: "Κυψελωτό σκυρόδεμα (τύπου Ytong) 25 cm (0.40)" },
+      { v: "0.34~a", en: "Autoclaved aerated concrete 30 cm (0.34)", el: "Κυψελωτό σκυρόδεμα (τύπου Ytong) 30 cm (0.34)" },
+      { v: "0.57", en: "Concrete + plasterboard lining with 5 cm mineral wool (0.57)", el: "Σκυρόδεμα + γυψοσανίδα με 5 cm πετροβάμβακα εσωτερικά (0.57)" },
+      { group: { en: "Industrial panels / cladding", el: "Βιομηχανικά πάνελ / επενδύσεις" } },
+      { v: "5.80", en: "Single-skin metal sheet, uninsulated (5.80)", el: "Λαμαρίνα μονής στρώσης, αμόνωτη (5.80)" },
+      { v: "0.55", en: "Industrial PU panel 40 mm (0.55)", el: "Βιομηχανικό πάνελ PU 40 mm (0.55)" },
+      { v: "0.38", en: "Industrial PU/PIR panel 60 mm (0.38)", el: "Βιομηχανικό πάνελ PU/PIR 60 mm (0.38)" },
+      { v: "0.28", en: "Industrial PU/PIR panel 80 mm (0.28)", el: "Βιομηχανικό πάνελ PU/PIR 80 mm (0.28)" },
+      { v: "0.22", en: "Industrial PU/PIR panel 100 mm (0.22)", el: "Βιομηχανικό πάνελ PU/PIR 100 mm (0.22)" },
+      { v: "0.18~p", en: "PU/PIR panel 120 mm (0.18)", el: "Πάνελ PU/PIR 120 mm (0.18)" },
+      { v: "0.14", en: "PU/PIR panel 150 mm — cold room (0.14)", el: "Πάνελ PU/PIR 150 mm — ψυκτικός θάλαμος (0.14)" },
+      { v: "0.11", en: "PU/PIR panel 200 mm — freezer room (0.11)", el: "Πάνελ PU/PIR 200 mm — θάλαμος κατάψυξης (0.11)" },
+      { v: "0.65", en: "Mineral wool panel 50 mm (0.65)", el: "Πάνελ πετροβάμβακα 50 mm (0.65)" },
+      { v: "0.48", en: "Mineral wool panel 80 mm (0.48)", el: "Πάνελ πετροβάμβακα 80 mm (0.48)" },
+      { v: "0.37~m", en: "Mineral wool panel 100 mm (0.37)", el: "Πάνελ πετροβάμβακα 100 mm (0.37)" },
+      { v: "0.32~m", en: "Mineral wool panel 120 mm (0.32)", el: "Πάνελ πετροβάμβακα 120 mm (0.32)" },
+      { v: "0.26~m", en: "Mineral wool panel 150 mm (0.26)", el: "Πάνελ πετροβάμβακα 150 mm (0.26)" },
+      { v: "0.45~s", en: "Concrete sandwich panel (0.45)", el: "Πάνελ sandwich σκυροδέματος (0.45)" },
+      { group: { en: "Internal partitions", el: "Εσωτερικά χωρίσματα" } },
+      { v: "1.85", en: "Plasterboard partition, no insulation (1.85)", el: "Χώρισμα γυψοσανίδας, αμόνωτο (1.85)" },
+      { v: "0.57~g", en: "Plasterboard partition + 5 cm mineral wool (0.57)", el: "Χώρισμα γυψοσανίδας + 5 cm πετροβάμβακα (0.57)" },
+      { v: "0.32~g", en: "Plasterboard partition + 10 cm mineral wool (0.32)", el: "Χώρισμα γυψοσανίδας + 10 cm πετροβάμβακα (0.32)" },
+      { v: "1.95", en: "Brick partition 10 cm, plastered (1.95)", el: "Οπτοπλινθοδομή 10 cm με σοβά, χώρισμα (1.95)" },
+      { group: { en: "Other", el: "Άλλο" } },
       { v: "custom", en: "Custom", el: "Χειροκίνητο" }
     ],
     UwinPreset: [
+      { group: { en: "Glazing only (Ug)", el: "Μόνο υαλοπίνακας (Ug)" } },
       { v: "5.7", en: "Single clear (5.7)", el: "Μονό τζάμι (5.7)" },
       { v: "2.8", en: "Double clear (2.8)", el: "Διπλό τζάμι (2.8)" },
       { v: "1.6", en: "Double low-e (1.6)", el: "Διπλό low-e (1.6)" },
-      { v: "1.3", en: "Double low-e + Argon (1.3)", el: "Διπλό low-e + Argon (1.3)" },
+      { v: "1.3", en: "Double low-e + Argon (1.3)", el: "Διπλό low-e + αργό (1.3)" },
       { v: "1.0", en: "Triple low-e (1.0)", el: "Τριπλό low-e (1.0)" },
-      { v: "0.9", en: "Triple low-e + Argon (0.9)", el: "Τριπλό low-e + Argon (0.9)" },
+      { v: "0.9", en: "Triple low-e + Argon (0.9)", el: "Τριπλό low-e + αργό (0.9)" },
       { v: "0.8", en: "High-performance triple (0.8)", el: "Τριπλό υψηλής απόδοσης (0.8)" },
+      { group: { en: "Complete window with frame (Uw)", el: "Κούφωμα κομπλέ με πλαίσιο (Uw)" } },
+      { v: "6.0", en: "Aluminium, no thermal break + single glass (6.0)", el: "Αλουμίνιο χωρίς θερμοδιακοπή + μονό τζάμι (6.0)" },
+      { v: "3.9", en: "Aluminium, no thermal break + double glass (3.9)", el: "Αλουμίνιο χωρίς θερμοδιακοπή + διπλό τζάμι (3.9)" },
+      { v: "3.0", en: "Aluminium thermal break + double clear (3.0)", el: "Αλουμίνιο με θερμοδιακοπή + διπλό διαφανές (3.0)" },
+      { v: "2.2", en: "Aluminium thermal break + double low-e (2.2)", el: "Αλουμίνιο με θερμοδιακοπή + διπλό low-e (2.2)" },
+      { v: "1.8", en: "Aluminium thermal break + double low-e argon (1.8)", el: "Αλουμίνιο με θερμοδιακοπή + διπλό low-e αργό (1.8)" },
+      { v: "1.3~al", en: "Aluminium thermal break + triple (1.3)", el: "Αλουμίνιο με θερμοδιακοπή + τριπλό (1.3)" },
+      { v: "2.7", en: "PVC + double clear (2.7)", el: "PVC + διπλό διαφανές (2.7)" },
+      { v: "1.5", en: "PVC + double low-e (1.5)", el: "PVC + διπλό low-e (1.5)" },
+      { v: "1.1", en: "PVC + double low-e argon (1.1)", el: "PVC + διπλό low-e αργό (1.1)" },
+      { v: "0.9~pvc", en: "PVC + triple low-e (0.9)", el: "PVC + τριπλό low-e (0.9)" },
+      { v: "2.6", en: "Timber + double clear (2.6)", el: "Ξύλινο + διπλό διαφανές (2.6)" },
+      { v: "1.7", en: "Timber + double low-e (1.7)", el: "Ξύλινο + διπλό low-e (1.7)" },
+      { group: { en: "Special", el: "Ειδικά" } },
       { v: "1.9", en: "Industrial frame thermally broken (1.9)", el: "Βιομηχανικό πλαίσιο με θερμοδιακοπή (1.9)" },
+      { v: "2.0", en: "Aluminium curtain wall, double low-e (2.0)", el: "Υαλοπέτασμα αλουμινίου, διπλό low-e (2.0)" },
+      { v: "3.0~pc", en: "Polycarbonate multiwall 10 mm (3.0)", el: "Πολυκαρβονικό κυψελωτό 10 mm (3.0)" },
+      { v: "2.4", en: "Polycarbonate multiwall 16 mm (2.4)", el: "Πολυκαρβονικό κυψελωτό 16 mm (2.4)" },
+      { v: "2.9", en: "Glass blocks (2.9)", el: "Υαλότουβλα (2.9)" },
+      { group: { en: "Other", el: "Άλλο" } },
       { v: "custom", en: "Custom", el: "Χειροκίνητο" }
     ],
     SHGCpreset: [
       { v: "0.86", en: "Single clear (~0.86)", el: "Μονό τζάμι (~0.86)" },
+      { v: "0.80", en: "Clear polycarbonate (~0.80)", el: "Διαφανές πολυκαρβονικό (~0.80)" },
       { v: "0.70", en: "Double clear (~0.70)", el: "Διπλό τζάμι (~0.70)" },
+      { v: "0.62", en: "Double low-e, high solar gain (~0.62)", el: "Διπλό low-e υψηλής ηλιακής διαπερατότητας (~0.62)" },
+      { v: "0.60", en: "Glass blocks (~0.60)", el: "Υαλότουβλα (~0.60)" },
       { v: "0.55", en: "Double low-e (~0.55)", el: "Διπλό low-e (~0.55)" },
+      { v: "0.50", en: "Double tinted / opal polycarbonate (~0.50)", el: "Διπλό φιμέ / γαλακτώδες πολυκαρβονικό (~0.50)" },
       { v: "0.40", en: "Triple low-e (~0.40)", el: "Τριπλό low-e (~0.40)" },
-      { v: "0.30", en: "Solar-control glass (~0.30)", el: "Ηλιοπροστατευτικό υαλοστάσιο (~0.30)" }
+      { v: "0.30", en: "Solar-control glass (~0.30)", el: "Ηλιοπροστατευτικό υαλοστάσιο (~0.30)" },
+      { v: "0.25", en: "Reflective glass (~0.25)", el: "Ανακλαστικό υαλοστάσιο (~0.25)" },
+      { v: "0.20", en: "Strong solar control (~0.20)", el: "Ισχυρού ηλιακού ελέγχου (~0.20)" }
     ],
     UroofPreset: [
-      { v: "0.05", en: "No exposed roof / internal ceiling (0.05)", el: "Χωρίς εκτεθειμένη οροφή / εσωτερική οροφή (0.05)" },
+      { group: { en: "Concrete slab / flat roof", el: "Πλάκα σκυροδέματος / δώμα" } },
       { v: "1.00", en: "Uninsulated slab (1.00)", el: "Πλάκα χωρίς μόνωση (1.00)" },
+      { v: "3.30", en: "Concrete slab 20 cm, uninsulated — layer calc (3.30)", el: "Πλάκα σκυροδέματος 20 cm αμόνωτη — υπολογισμός στρώσεων (3.30)" },
       { v: "0.50", en: "XPS 5 cm (0.50)", el: "XPS 5 cm (0.50)" },
       { v: "0.35", en: "XPS 8 cm (0.35)", el: "XPS 8 cm (0.35)" },
+      { v: "0.30", en: "XPS 10 cm (0.30)", el: "XPS 10 cm (0.30)" },
       { v: "0.25", en: "XPS 12 cm (0.25)", el: "XPS 12 cm (0.25)" },
       { v: "0.20", en: "XPS 15 cm (0.20)", el: "XPS 15 cm (0.20)" },
       { v: "0.18", en: "XPS 20 cm (0.18)", el: "XPS 20 cm (0.18)" },
+      { group: { en: "Pitched tiled roof", el: "Κεραμοσκεπή" } },
+      { v: "2.60", en: "Tiled roof, uninsulated (2.60)", el: "Κεραμοσκεπή αμόνωτη (2.60)" },
+      { v: "0.60", en: "Tiled roof + 5 cm insulation (0.60)", el: "Κεραμοσκεπή + 5 cm μόνωση (0.60)" },
+      { v: "0.33", en: "Tiled roof + 10 cm insulation (0.33)", el: "Κεραμοσκεπή + 10 cm μόνωση (0.33)" },
+      { v: "0.24", en: "Tiled roof + 15 cm insulation (0.24)", el: "Κεραμοσκεπή + 15 cm μόνωση (0.24)" },
+      { group: { en: "Metal roofs / panels", el: "Μεταλλικές στέγες / πάνελ" } },
       { v: "2.40", en: "Metal deck no insulation (2.40)", el: "Μεταλλική στέγη χωρίς μόνωση (2.40)" },
-      { v: "0.55", en: "Metal + PU panel 40 mm (0.55)", el: "Μεταλλική + panel PU 40 mm (0.55)" },
-      { v: "0.38", en: "Metal + PU/PIR panel 60 mm (0.38)", el: "Μεταλλική + panel PU/PIR 60 mm (0.38)" },
-      { v: "0.28", en: "Metal + PU/PIR panel 80 mm (0.28)", el: "Μεταλλική + panel PU/PIR 80 mm (0.28)" },
-      { v: "0.22", en: "Metal + PU/PIR panel 100 mm (0.22)", el: "Μεταλλική + panel PU/PIR 100 mm (0.22)" },
+      { v: "7.00", en: "Single-skin metal sheet — layer calc (7.00)", el: "Λαμαρίνα μονής στρώσης — υπολογισμός στρώσεων (7.00)" },
+      { v: "0.55", en: "Metal + PU panel 40 mm (0.55)", el: "Μεταλλική + πάνελ PU 40 mm (0.55)" },
+      { v: "0.38", en: "Metal + PU/PIR panel 60 mm (0.38)", el: "Μεταλλική + πάνελ PU/PIR 60 mm (0.38)" },
+      { v: "0.28", en: "Metal + PU/PIR panel 80 mm (0.28)", el: "Μεταλλική + πάνελ PU/PIR 80 mm (0.28)" },
+      { v: "0.22", en: "Metal + PU/PIR panel 100 mm (0.22)", el: "Μεταλλική + πάνελ PU/PIR 100 mm (0.22)" },
+      { v: "0.18~p", en: "PU/PIR panel 120 mm (0.18)", el: "Πάνελ PU/PIR 120 mm (0.18)" },
+      { v: "0.14", en: "PU/PIR panel 150 mm — cold room (0.14)", el: "Πάνελ PU/PIR 150 mm — ψυκτικός θάλαμος (0.14)" },
       { v: "0.65", en: "Metal + mineral wool 50 mm (0.65)", el: "Μεταλλική + πετροβάμβακας 50 mm (0.65)" },
       { v: "0.48", en: "Metal + mineral wool 80 mm (0.48)", el: "Μεταλλική + πετροβάμβακας 80 mm (0.48)" },
+      { v: "0.37~m", en: "Metal + mineral wool 100 mm (0.37)", el: "Μεταλλική + πετροβάμβακας 100 mm (0.37)" },
+      { v: "0.25~m", en: "Metal + mineral wool 150 mm (0.25)", el: "Μεταλλική + πετροβάμβακας 150 mm (0.25)" },
+      { group: { en: "Ceilings / intermediate floors", el: "Ψευδοροφές / ενδιάμεσες πλάκες" } },
+      { v: "0.05", en: "No exposed roof / internal ceiling (0.05)", el: "Χωρίς εκτεθειμένη οροφή / εσωτερική οροφή (0.05)" },
+      { v: "2.50", en: "Plasterboard ceiling, uninsulated (2.50)", el: "Ψευδοροφή γυψοσανίδας αμόνωτη (2.50)" },
+      { v: "0.61", en: "Plasterboard ceiling + 5 cm mineral wool (0.61)", el: "Ψευδοροφή γυψοσανίδας + 5 cm πετροβάμβακα (0.61)" },
+      { v: "0.33~g", en: "Plasterboard ceiling + 10 cm mineral wool (0.33)", el: "Ψευδοροφή γυψοσανίδας + 10 cm πετροβάμβακα (0.33)" },
+      { v: "2.60~s", en: "Intermediate concrete floor slab, uninsulated (2.60)", el: "Ενδιάμεση πλάκα ορόφου αμόνωτη (2.60)" },
+      { group: { en: "Other", el: "Άλλο" } },
       { v: "custom", en: "Custom", el: "Χειροκίνητο" }
     ],
     UfloorPreset: [
-      { v: "p|1.50", en: "Pilotis uninsulated (1.50)", el: "Pilotis χωρίς μόνωση (1.50)" },
-      { v: "p|0.90", en: "Pilotis light insulation 3 cm (0.90)", el: "Pilotis ελαφριά μόνωση 3 cm (0.90)" },
-      { v: "p|0.50", en: "Pilotis insulation 5 cm (0.50)", el: "Pilotis μόνωση 5 cm (0.50)" },
-      { v: "p|0.35", en: "Pilotis insulation 8 cm (0.35)", el: "Pilotis μόνωση 8 cm (0.35)" },
-      { v: "p|0.25", en: "Pilotis insulation 12 cm (0.25)", el: "Pilotis μόνωση 12 cm (0.25)" },
-      { v: "p|0.22", en: "Pilotis industrial panel 100 mm (0.22)", el: "Pilotis βιομηχανικό panel 100 mm (0.22)" },
+      { group: { en: "Over pilotis / open air", el: "Πάνω από πιλοτή / ανοιχτό χώρο" } },
+      { v: "p|1.50", en: "Pilotis uninsulated (1.50)", el: "Πιλοτή χωρίς μόνωση (1.50)" },
+      { v: "p|2.50", en: "Pilotis slab uninsulated — layer calc (2.50)", el: "Πιλοτή, πλάκα αμόνωτη — υπολογισμός στρώσεων (2.50)" },
+      { v: "p|0.90", en: "Pilotis light insulation 3 cm (0.90)", el: "Πιλοτή, ελαφριά μόνωση 3 cm (0.90)" },
+      { v: "p|0.50", en: "Pilotis insulation 5 cm (0.50)", el: "Πιλοτή, μόνωση 5 cm (0.50)" },
+      { v: "p|0.35", en: "Pilotis insulation 8 cm (0.35)", el: "Πιλοτή, μόνωση 8 cm (0.35)" },
+      { v: "p|0.30", en: "Pilotis insulation 10 cm (0.30)", el: "Πιλοτή, μόνωση 10 cm (0.30)" },
+      { v: "p|0.25", en: "Pilotis insulation 12 cm (0.25)", el: "Πιλοτή, μόνωση 12 cm (0.25)" },
+      { v: "p|0.22", en: "Pilotis industrial panel 100 mm (0.22)", el: "Πιλοτή, βιομηχανικό πάνελ 100 mm (0.22)" },
+      { group: { en: "On ground", el: "Επί εδάφους" } },
       { v: "g|1.20", en: "Ground floor uninsulated (1.20)", el: "Δάπεδο εδάφους χωρίς μόνωση (1.20)" },
-      { v: "g|0.80", en: "Ground floor light insulation 3 cm (0.80)", el: "Δάπεδο εδάφους ελαφριά μόνωση 3 cm (0.80)" },
-      { v: "g|0.50", en: "Ground floor insulation 5 cm (0.50)", el: "Δάπεδο εδάφους μόνωση 5 cm (0.50)" },
-      { v: "g|0.35", en: "Ground floor insulation 8 cm (0.35)", el: "Δάπεδο εδάφους μόνωση 8 cm (0.35)" },
-      { v: "g|0.25", en: "Ground floor insulation 12 cm (0.25)", el: "Δάπεδο εδάφους μόνωση 12 cm (0.25)" },
-      { v: "g|0.20", en: "Ground floor insulation 15 cm (0.20)", el: "Δάπεδο εδάφους μόνωση 15 cm (0.20)" },
+      { v: "g|0.80", en: "Ground floor light insulation 3 cm (0.80)", el: "Δάπεδο εδάφους, ελαφριά μόνωση 3 cm (0.80)" },
+      { v: "g|0.50", en: "Ground floor insulation 5 cm (0.50)", el: "Δάπεδο εδάφους, μόνωση 5 cm (0.50)" },
+      { v: "g|0.35", en: "Ground floor insulation 8 cm (0.35)", el: "Δάπεδο εδάφους, μόνωση 8 cm (0.35)" },
+      { v: "g|0.25", en: "Ground floor insulation 12 cm (0.25)", el: "Δάπεδο εδάφους, μόνωση 12 cm (0.25)" },
+      { v: "g|0.20", en: "Ground floor insulation 15 cm (0.20)", el: "Δάπεδο εδάφους, μόνωση 15 cm (0.20)" },
       { v: "g|0.30", en: "Industrial slab on ground (0.30)", el: "Βιομηχανική πλάκα επί εδάφους (0.30)" },
+      { v: "g|0.16", en: "Cold-room floor, 20 cm XPS (0.16)", el: "Δάπεδο ψυκτικού θαλάμου, XPS 20 cm (0.16)" },
+      { group: { en: "Other", el: "Άλλο" } },
       { v: "custom", en: "Custom", el: "Χειροκίνητο" }
     ],
     ACHinf: [
@@ -1335,15 +1473,59 @@
       { v: "1", en: "Tilt-open (~1)", el: "Ανακλινόμενο (~1)" },
       { v: "3", en: "Open windows (~3)", el: "Ανοιχτά παράθυρα (~3)" }
     ],
+    InfSource: [
+      { v: "out", en: "Outdoors", el: "Εξωτερικό" },
+      { v: "adj", en: "Unconditioned space (its temperature, outdoor humidity)", el: "Μη κλιματιζόμενο χώρο (η θερμοκρασία του, υγρασία εξωτερικού)" }
+    ],
     MechMode: [
       { v: "ach", en: "Use ACH", el: "Με ACH" },
       { v: "flow", en: "Use m3/h", el: "Με m3/h" }
     ],
     PeopleActivity: [
-      { v: "75|55", en: "Seated (S=75, L=55)", el: "Καθιστή δραστηριότητα (S=75, L=55)" },
+      { group: { en: "General", el: "Γενικά" } },
+      { v: "75|55", en: "Seated, office work (S=75, L=55)", el: "Καθιστή εργασία γραφείου (S=75, L=55)" },
       { v: "100|75", en: "Light activity (100/75)", el: "Ελαφριά δραστηριότητα (100/75)" },
       { v: "130|95", en: "Moderate activity (130/95)", el: "Μέτρια δραστηριότητα (130/95)" },
-      { v: "160|120", en: "Industrial light work (160/120)", el: "Ελαφριά βιομηχανική εργασία (160/120)" }
+      { v: "160|120", en: "Industrial light work (160/120)", el: "Ελαφριά βιομηχανική εργασία (160/120)" },
+      { group: { en: "ASHRAE Fundamentals, ch.18 table 1", el: "ASHRAE Fundamentals, κεφ. 18 πίν. 1" } },
+      { v: "65|30", en: "Seated at theatre (65/30)", el: "Καθιστοί σε θέατρο / αμφιθέατρο (65/30)" },
+      { v: "70|45", en: "Seated, very light work (70/45)", el: "Καθιστοί, πολύ ελαφριά εργασία (70/45)" },
+      { v: "75|70", en: "Walking, standing — retail, bank (75/70)", el: "Όρθιοι, περπάτημα — κατάστημα, τράπεζα (75/70)" },
+      { v: "80|80", en: "Sedentary — restaurant (80/80)", el: "Εστιατόριο — πελάτες (80/80)" },
+      { v: "80|140", en: "Light bench work — factory (80/140)", el: "Ελαφριά εργασία πάγκου — εργοστάσιο (80/140)" },
+      { v: "90|160", en: "Moderate dancing (90/160)", el: "Μέτριος χορός (90/160)" },
+      { v: "110|185", en: "Walking 1.3 m/s, light machine work (110/185)", el: "Περπάτημα 1,3 m/s, ελαφριά εργασία μηχανών (110/185)" },
+      { v: "170|255", en: "Heavy work — bowling (170/255)", el: "Βαριά εργασία (170/255)" },
+      { v: "185|285", en: "Heavy machine work, lifting (185/285)", el: "Βαριά εργασία μηχανών, ανύψωση (185/285)" },
+      { v: "210|315", en: "Athletics — gym (210/315)", el: "Γυμναστήριο (210/315)" }
+    ],
+    LightingPreset: [
+      { v: "", en: "— typical values —", el: "— τυπικές τιμές —" },
+      { group: { en: "LED", el: "LED" } },
+      { v: "7", en: "LED office (7)", el: "LED γραφείο (7)" },
+      { v: "7", en: "LED classroom (7)", el: "LED αίθουσα διδασκαλίας (7)" },
+      { v: "11", en: "LED retail (11)", el: "LED κατάστημα (11)" },
+      { v: "10", en: "LED restaurant (10)", el: "LED εστιατόριο (10)" },
+      { v: "10", en: "LED lab / clinic (10)", el: "LED εργαστήριο / ιατρείο (10)" },
+      { v: "7", en: "LED industrial production (7)", el: "LED βιομηχανική παραγωγή (7)" },
+      { v: "4", en: "LED warehouse (4)", el: "LED αποθήκη (4)" },
+      { v: "2", en: "LED parking (2)", el: "LED στάθμευση (2)" },
+      { group: { en: "Older technology", el: "Παλαιότερη τεχνολογία" } },
+      { v: "12", en: "Fluorescent office T8 (12)", el: "Φθορισμού γραφείο T8 (12)" },
+      { v: "10", en: "Fluorescent industrial (10)", el: "Φθορισμού βιομηχανία (10)" },
+      { v: "12", en: "Metal halide high-bay (12)", el: "Μεταλλικών αλογονιδίων high-bay (12)" },
+      { v: "25", en: "Halogen display spots (25)", el: "Σποτ αλογόνου βιτρίνας (25)" }
+    ],
+    EquipPreset: [
+      { v: "", en: "— typical values —", el: "— τυπικές τιμές —" },
+      { v: "8", en: "Office, light (8)", el: "Γραφείο, ελαφρύ (8)" },
+      { v: "12", en: "Office, typical (12)", el: "Γραφείο, τυπικό (12)" },
+      { v: "20", en: "Office, dense / call centre (20)", el: "Γραφείο, πυκνό / τηλεφωνικό κέντρο (20)" },
+      { v: "10", en: "Meeting room (10)", el: "Αίθουσα συσκέψεων (10)" },
+      { v: "5", en: "Retail (5)", el: "Κατάστημα (5)" },
+      { v: "25", en: "Laboratory (25)", el: "Εργαστήριο (25)" },
+      { v: "20", en: "Light assembly (20)", el: "Ελαφριά συναρμολόγηση (20)" },
+      { v: "0", en: "None — devices listed below (0)", el: "Κανένα — μόνο οι συσκευές παρακάτω (0)" }
     ],
     PS_ViewMode: [
       { v: "simple", en: "Simple", el: "Απλό" },
@@ -1365,25 +1547,51 @@
     ]
   };
 
+  // default choice of each list (same as the pre-v9 defaults)
+  const SELECT_DEFAULTS = {
+    Mode: "cool", Units: "kW", city: "Athens|36|40", GeoMode: "dims",
+    UwallPreset: "0.70", UwallUnhPreset: "same", UwinPreset: "2.8", SHGCpreset: "0.70",
+    UroofPreset: "0.35", UfloorPreset: "g|0.50", ACHinf: "0.7", ACHnat: "0", InfSource: "out",
+    MechMode: "ach", PeopleActivity: "100|75", LightingPreset: "", EquipPreset: ""
+  };
+
   function fillSelect(id, items) {
     const sel = $(id);
     if (!sel || !items) return;
     const v = sel.value;
-    sel.innerHTML = items.map((it) => `<option value="${it.v}">${it[currentLang]}</option>`).join("");
+    let html = "", open = false;
+    items.forEach((it) => {
+      if (it.group) {
+        if (open) html += "</optgroup>";
+        html += `<optgroup label="${it.group[currentLang]}">`;
+        open = true;
+        return;
+      }
+      html += `<option value="${it.v}">${it[currentLang]}</option>`;
+    });
+    if (open) html += "</optgroup>";
+    sel.innerHTML = html;
     sel.value = v;
-    if (sel.value !== v && items[0]) sel.value = items[0].v;
+    if (sel.value !== v || v === "") {
+      const first = items.find((it) => !it.group);
+      const d = SELECT_DEFAULTS[id];
+      sel.value = v !== "" && sel.value === v ? v : (d !== undefined ? d : (first ? first.v : ""));
+    }
   }
 
   function collapseBilingualPairs() {
     const nodes = document.querySelectorAll("h1,h2,h3,h4,label,.desc,button,summary,th,td,.muted,.input-help");
     nodes.forEach((el) => {
       if (!el) return;
+      if (el.closest("#result, .lc-intable, #spacesTree, #liveChecks")) return; // generated per language already
       const raw = el.dataset.rawText || el.textContent || "";
       if (!el.dataset.rawText) el.dataset.rawText = raw;
       if (!raw.includes(" / ")) return;
       const parts = raw.split(" / ");
       if (parts.length < 2) return;
-      el.textContent = currentLang === "el" ? parts[1] : parts[0];
+      // "EN / EL" or, when each side has its own " / ", "EN a / EN b / EL a / EL b"
+      const half = parts.length % 2 === 0 ? parts.length / 2 : 1;
+      el.textContent = currentLang === "el" ? parts.slice(half).join(" / ") : parts.slice(0, half).join(" / ");
     });
   }
 
@@ -1476,6 +1684,8 @@
     if ($("tabLoads")) $("tabLoads").textContent = modeTabLabel();
 
     Object.keys(OPTIONS).forEach((id) => fillSelect(id, OPTIONS[id]));
+    fillDeviceSelect();
+    relabelTables();
 
     collapseBilingualPairs();
     renderAssumptions();
@@ -1491,15 +1701,37 @@
       if (!el) return;
       data[id] = el.value;
     });
+    // window groups and devices belong to the room too (before v9 they were not saved per room)
+    data.__win = Array.from(document.querySelectorAll("#winTable tbody tr")).map((tr) => [
+      tr.querySelector(".wg-orient")?.value || "S", tr.querySelector(".wg-area")?.value || "0", tr.querySelector(".wg-shade")?.value || "1"
+    ]);
+    data.__dev = Array.from(document.querySelectorAll("#devTable tbody tr")).map((tr) => [
+      tr.dataset.key || "", tr.dataset.name || tr.cells[0]?.textContent || "", tr.querySelector(".dv-W")?.value || "0", tr.querySelector(".dv-duty")?.value || "1"
+    ]);
     return data;
+  }
+
+  function restoreTables(data) {
+    if (Array.isArray(data.__win)) {
+      if (winTableBody) winTableBody.innerHTML = "";
+      data.__win.forEach(([o, a, sh]) => addWindowRow(o, a, sh));
+    }
+    if (Array.isArray(data.__dev)) {
+      if (devTableBody) devTableBody.innerHTML = "";
+      data.__dev.forEach(([key, name, W, duty]) => addDeviceRow({ key, name, W }, duty));
+    }
   }
 
   function applyInputSnapshot(data) {
     if (!data) return;
     Object.entries(data).forEach(([id, value]) => {
+      if (id.startsWith("__")) return;
       const el = $(id);
       if (el) el.value = value;
     });
+    if (!$("Units")?.value) $("Units").value = "kW"; // studies saved with the old "W" unit
+    restoreTables(data);
+    syncDerivedUi();
     updateModeTheme();
     calcLoad();
     syncPsychroUiState();
@@ -1516,6 +1748,7 @@
   function tr(en, el) {
     return currentLang === "el" ? el : en;
   }
+  const tr_ = tr;
 
   function spaceCoolTotal(s) {
     if (Number.isFinite(s?.coolW)) return s.coolW;
@@ -1563,13 +1796,18 @@
       const badges = [];
       if (isSelected) badges.push(`<span class="badge sel">${tr("selected", "επιλεγμένο")}</span>`);
       if (isDirty) badges.push(`<span class="badge dirty">${tr("modified", "τροποποιημένο")}</span>`);
-      return `<div class="${cls}" onclick="window.__selectSpace('${s.id}')"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtPower(cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtPower(heat)}</div><div class="meta">Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}</div>${badges.length ? `<div class="space-badges">${badges.join("")}</div>` : ""}<div style="margin-top:6px"><button class="ghost" type="button" onclick="event.stopPropagation(); window.__removeSpace('${s.id}')">x</button></div></div>`;
+      return `<div class="${cls}" onclick="window.__selectSpace('${s.id}')"><b>${s.name}</b><div class="meta">${tr("Cooling", "Ψύξη")}: ${fmtSeason(s, "cool", cool)}</div><div class="meta">${tr("Heat losses", "Απώλειες")}: ${fmtSeason(s, "heat", heat)}</div><div class="meta">Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}</div>${badges.length ? `<div class="space-badges">${badges.join("")}</div>` : ""}<div style="margin-top:6px"><button class="ghost" type="button" onclick="event.stopPropagation(); window.__removeSpace('${s.id}')">x</button></div></div>`;
     }).join("");
 
     const coolTot = spaces.reduce((a, s) => a + spaceCoolTotal(s), 0);
     const heatTot = spaces.reduce((a, s) => a + spaceHeatTotal(s), 0);
 
-    totals.innerHTML = `${tr("Total Cooling", "Σύνολο Ψύξης")}: <b>${fmtPower(coolTot)}</b> | ${tr("Total Heat Losses", "Σύνολο Απωλειών")}: <b>${fmtPower(heatTot)}</b>`;
+    scheduleAutosave();
+    const anyEst = spaces.some((x) => seasonSrc(x, "cool") === "est" || seasonSrc(x, "heat") === "est");
+    const anyNone = spaces.some((x) => seasonSrc(x, "cool") === "none" || seasonSrc(x, "heat") === "none");
+    totals.innerHTML = `${tr("Total Cooling", "Σύνολο Ψύξης")}: <b>${fmtPower(coolTot)}</b> | ${tr("Total Heat Losses", "Σύνολο Απωλειών")}: <b>${fmtPower(heatTot)}</b>`
+      + (anyEst ? `<div class="lc-foot">* ${tr("other season estimated with the city's design values and default indoor set-point; calculate the room in that mode for an exact value.", "η άλλη εποχή εκτιμήθηκε με τις συνθήκες σχεδιασμού της πόλης και την προεπιλεγμένη εσωτερική θερμοκρασία· για ακριβή τιμή υπολόγισε τον χώρο και σε αυτή τη λειτουργία.")}</div>` : "")
+      + (anyNone ? `<div class="lc-foot">— ${tr("not calculated: custom conditions have no second season. Switch the room to that mode and press Calculate.", "δεν υπολογίστηκε: με χειροκίνητες συνθήκες δεν υπάρχει δεύτερη εποχή. Γύρνα τον χώρο σε εκείνη τη λειτουργία και πάτα Υπολογισμός.")}</div>` : "");
 
     refreshRoomSelect();
   }
@@ -1615,11 +1853,44 @@
     };
   }
 
+  // The form holds ONE set of design conditions (the active mode). For the other season we use the
+  // city's design values (and the default indoor set-point); with custom conditions it is unknown.
+  // Before v9 the other season was computed with the active season's temperatures (e.g. heat losses
+  // with the summer outdoor temperature).
+  const SEASON_IDS = ["Tin", "RHin", "Tout", "RHout", "Tadj", "Tground", "Tattic"];
+  function computeForSeason(target) {
+    const modeNow = str("Mode", "cool");
+    if (target === modeNow) return { data: computeLoadsForMode(target), src: "calc" };
+    const cityVal = str("city", "Custom");
+    const cfg = cityVal !== "Custom" ? cityData[cityVal.split("|")[0]] : null;
+    if (!cfg) return { data: null, src: "none" };
+    const saved = SEASON_IDS.map((k) => $(k)?.value);
+    const k = target === "cool" ? "cool" : "heat";
+    const set = (id, v) => { if ($(id)) $(id).value = String(v); };
+    try {
+      set("Tin", target === "cool" ? 24 : 22);
+      set("RHin", target === "cool" ? 45 : 40);
+      set("Tout", cfg[k].T); set("RHout", cfg[k].RH);
+      set("Tadj", cfg.adj[k]); set("Tground", cfg.ground[k]); set("Tattic", cfg.attic[k]);
+      return { data: computeLoadsForMode(target), src: "est" };
+    } finally {
+      SEASON_IDS.forEach((id, i) => { if ($(id)) $(id).value = saved[i]; });
+    }
+  }
+  const seasonSrc = (s, season) => (s?.[season === "cool" ? "coolSrc" : "heatSrc"] || "calc");
+  const fmtSeason = (s, season, W) => {
+    const src = seasonSrc(s, season);
+    return src === "none" ? "—" : `${fmtPower(W)}${src === "est" ? "*" : ""}`;
+  };
+
   function buildRoomState(id, name) {
     const modeNow = str("Mode", "cool");
 
-    let coolData = computeLoadsForMode("cool");
-    let heatData = computeLoadsForMode("heat");
+    const coolRes = computeForSeason("cool");
+    const heatRes = computeForSeason("heat");
+    const EMPTY = { Qt: 0, Qs: 0, Ql: 0, sensible: {}, latent: {} };
+    let coolData = coolRes.data || EMPTY;
+    let heatData = heatRes.data || EMPTY;
     const liveData = fromLastCalcSnapshot(lastCalc);
 
     // Ensure the active-mode values stored in rooms are exactly the ones shown in live results.
@@ -1641,6 +1912,8 @@
       heatW: heatData.Qt,
       heatQsW: heatData.Qs,
       heatQlW: heatData.Ql,
+      coolSrc: modeNow === "cool" ? "calc" : coolRes.src,
+      heatSrc: modeNow === "heat" ? "calc" : heatRes.src,
       inputs: captureInputs(),
       assumptions: [...(lastCalc?.assumptions || [])],
       sensible: { ...activeData.sensible },
@@ -1706,98 +1979,143 @@
     return out;
   }
 
-  function pieSvg(dataMap, title) {
-    const entries = Object.entries(dataMap || {}).filter(([, v]) => v > 0);
-    if (!entries.length) return `<div style="color:#666">${tr("No data", "Δεν υπάρχουν δεδομένα")}</div>`;
-    const total = entries.reduce((a, [, v]) => a + v, 0) || 1;
-    let start = 0;
-    const cx = 90;
-    const cy = 90;
-    const r = 70;
+  // ---------- reports (summary / detailed) ----------
+  const fmtBoth = (W) => `${(W / 1000).toFixed(2)} kW · ${groupThousands(W * BTU_PER_W)} BTU/h`;
+  const roomArea = (r) => geomFromData(r?.inputs || {}).A;
 
-    const segs = entries.map(([k, v], i) => {
-      const frac = v / total;
-      const end = start + frac * Math.PI * 2;
-      const x1 = cx + r * Math.cos(start);
-      const y1 = cy + r * Math.sin(start);
-      const x2 = cx + r * Math.cos(end);
-      const y2 = cy + r * Math.sin(end);
-      const large = end - start > Math.PI ? 1 : 0;
-      const color = `hsl(${Math.round((i / Math.max(1, entries.length)) * 280)} 70% 55%)`;
-      const path = `<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${color}"></path>`;
-      start = end;
-      return { path, color, k, v, p: (frac * 100).toFixed(1) };
-    });
-
-    const legend = segs.map((s) => `<div style="font-size:12px"><span style="display:inline-block;width:10px;height:10px;background:${s.color};margin-right:6px"></span>${compName(s.k)}: ${fmtPower(s.v)} (${s.p}%)</div>`).join("");
-    const svg = `<svg width="190" height="190" viewBox="0 0 180 180">${segs.map((s) => s.path).join("")}</svg>`;
-    return `<div><div style="font-weight:700;margin-bottom:6px">${title}</div><div style="display:flex;gap:14px;align-items:flex-start">${svg}<div>${legend}</div></div></div>`;
+  function reportRooms() {
+    if (spaces.length) return spaces;
+    // nothing saved yet: report the room currently on screen
+    calcLoad();
+    return [buildRoomState("current", projectNameValue() === tr("Untitled Study", "Ανώνυμη Μελέτη") ? tr("Current room", "Τρέχων χώρος") : projectNameValue())];
   }
 
-  function breakdownTable(mapObj, title) {
-    const rows = Object.entries(mapObj || {}).filter(([, v]) => v > 0)
-      .map(([k, v]) => `<tr><td>${compName(k)}</td><td>${fmtPower(v)}</td></tr>`).join("");
-    return `<h4>${title}</h4><table><thead><tr><th>${currentLang==='el'?'Συνιστώσα':'Component'}</th><th>${currentLang==='el'?'Τιμή':'Value'}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const REPORT_CSS = `
+    @page { size: A4; margin: 14mm 14mm 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; color: #132033; font-size: 10.5pt; line-height: 1.4; }
+    .num { font-family: "IBM Plex Mono", Consolas, monospace; white-space: nowrap; }
+    header.rep { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0B6FB8; padding-bottom: 8px; margin-bottom: 14px; }
+    header.rep h1 { margin: 0; font-size: 18pt; letter-spacing: -0.01em; }
+    header.rep .meta { text-align: right; font-size: 9pt; color: #4A5A6C; }
+    header.rep .meta b { color: #132033; }
+    h2 { font-size: 13pt; margin: 18px 0 8px; }
+    h3 { font-size: 10.5pt; margin: 14px 0 6px; color: #0B4F86; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 14px; }
+    .kpi { border: 1px solid #D5DCE4; border-radius: 8px; padding: 8px 10px; }
+    .kpi .l { font-size: 8.5pt; color: #4A5A6C; }
+    .kpi .v { font-family: "IBM Plex Mono", Consolas, monospace; font-size: 13pt; font-weight: 600; }
+    .kpi .s { font-size: 8pt; color: #4A5A6C; font-family: "IBM Plex Mono", Consolas, monospace; }
+    .kpi.cool { background: #EEF5FC; border-color: #B9D3EA; }
+    .kpi.heat { background: #FEF3EC; border-color: #F2C6A8; }
+    table { width: 100%; border-collapse: collapse; margin: 4px 0 10px; }
+    th, td { padding: 5px 6px; border-bottom: 1px solid #E1E6EC; text-align: left; vertical-align: top; }
+    thead th { font-size: 8.5pt; color: #4A5A6C; font-weight: 600; border-bottom: 1.5px solid #9AABBE; }
+    td.r, th.r { text-align: right; }
+    tr.tot td { font-weight: 700; border-top: 1.5px solid #132033; border-bottom: 0; }
+    .bar { height: 7px; background: #E6EBF1; border-radius: 4px; overflow: hidden; min-width: 60px; }
+    .bar i { display: block; height: 100%; background: #0B6FB8; }
+    .bar.h i { background: #C2410C; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .lc-intable td:first-child { color: #4A5A6C; width: 42%; white-space: pre; }
+    .lc-intable tr.grp th { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #0B4F86; padding-top: 10px; border-bottom: 1px solid #9AABBE; }
+    .note { font-size: 8.5pt; color: #4A5A6C; border-top: 1px solid #D5DCE4; margin-top: 16px; padding-top: 8px; }
+    .room { break-before: page; }
+    footer.rep { margin-top: 18px; font-size: 8pt; color: #5E6E80; display: flex; justify-content: space-between; }
+    @media screen { body { padding: 24px; max-width: 900px; margin: 0 auto; } }
+  `;
+
+  function reportHeader(title) {
+    const d = new Date();
+    return `<header class="rep"><div><h1>${esc(title)}</h1><div>${esc(projectNameValue())}</div></div>`
+      + `<div class="meta">${tr("Date", "Ημερομηνία")}: <b>${d.toLocaleDateString(currentLang === "el" ? "el-GR" : "en-GB")}</b><br>`
+      + `${tr("Units", "Μονάδες")}: <b>${esc(str("Units", "kW") || "kW")}</b><br>HVAC Load Calculator</div></header>`;
+  }
+
+  function breakdownRows(map, heat) {
+    const entries = Object.entries(map || {}).filter(([, v]) => v > 0.5).sort((x, y) => y[1] - x[1]);
+    const total = entries.reduce((acc, [, v]) => acc + v, 0) || 1;
+    return entries.map(([k, v]) => `<tr><td>${esc(compName(k))}</td><td class="r num">${fmtPower(v)}</td><td class="r num">${((100 * v) / total).toFixed(1)}%</td><td style="width:22%"><div class="bar${heat ? " h" : ""}"><i style="width:${((100 * v) / total).toFixed(1)}%"></i></div></td></tr>`).join("");
+  }
+
+  function breakdownTableR(title, map, heat) {
+    const rows = breakdownRows(map, heat);
+    if (!rows) return "";
+    return `<h3>${esc(title)}</h3><table><thead><tr><th>${tr("Component", "Συνιστώσα")}</th><th class="r">${tr("Load", "Φορτίο")}</th><th class="r">%</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function summaryBlock(rooms) {
+    const A = rooms.reduce((acc, r) => acc + roomArea(r), 0);
+    const cool = rooms.reduce((acc, r) => acc + spaceCoolTotal(r), 0);
+    const qs = rooms.reduce((acc, r) => acc + spaceCoolQs(r), 0);
+    const ql = rooms.reduce((acc, r) => acc + spaceCoolQl(r), 0);
+    const heat = rooms.reduce((acc, r) => acc + spaceHeatTotal(r), 0);
+    const spec = (W, a) => (a > 0 ? `${Math.round(W / a)} W/m²` : "—");
+    const kpis = `<div class="kpis">
+      <div class="kpi cool"><div class="l">${tr("Cooling load", "Ψυκτικό φορτίο")}</div><div class="v">${fmtPower(cool)}</div><div class="s">${fmtBoth(cool)}</div></div>
+      <div class="kpi cool"><div class="l">${tr("Sensible · latent · SHR", "Αισθητό · λανθάνον · SHR")}</div><div class="v">${cool > 0 ? (qs / cool).toFixed(2) : "—"}</div><div class="s">${fmtPower(qs)} · ${fmtPower(ql)}</div></div>
+      <div class="kpi heat"><div class="l">${tr("Heat losses", "Θερμικές απώλειες")}</div><div class="v">${fmtPower(heat)}</div><div class="s">${fmtBoth(heat)}</div></div>
+      <div class="kpi"><div class="l">${tr("Floor area · specific", "Εμβαδόν · ειδικό φορτίο")}</div><div class="v">${A.toFixed(1)} m²</div><div class="s">${tr("cool", "ψύξη")} ${spec(cool, A)} · ${tr("heat", "θέρμ.")} ${spec(heat, A)}</div></div>
+    </div>`;
+    const rows = rooms.map((r, i) => {
+      const a = roomArea(r), c = spaceCoolTotal(r), h = spaceHeatTotal(r), s_ = spaceCoolQs(r), l = spaceCoolQl(r);
+      return `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td class="r num">${a.toFixed(1)}</td><td class="r num">${fmtSeason(r, "cool", c)}</td><td class="r num">${fmtPower(s_)}</td><td class="r num">${fmtPower(l)}</td><td class="r num">${c > 0 ? (s_ / c).toFixed(2) : "—"}</td><td class="r num">${a > 0 ? Math.round(c / a) : "—"}</td><td class="r num">${fmtSeason(r, "heat", h)}</td><td class="r num">${a > 0 && seasonSrc(r, "heat") !== "none" ? Math.round(h / a) : "—"}</td></tr>`;
+    }).join("");
+    const est = rooms.some((x) => seasonSrc(x, "cool") === "est" || seasonSrc(x, "heat") === "est");
+    const none = rooms.some((x) => seasonSrc(x, "cool") === "none" || seasonSrc(x, "heat") === "none");
+    const table = `<table><thead><tr><th>#</th><th>${tr("Room", "Χώρος")}</th><th class="r">m²</th><th class="r">${tr("Cooling", "Ψύξη")}</th><th class="r">Qs</th><th class="r">Ql</th><th class="r">SHR</th><th class="r">W/m²</th><th class="r">${tr("Heating", "Θέρμανση")}</th><th class="r">W/m²</th></tr></thead>
+      <tbody>${rows}<tr class="tot"><td></td><td>${tr("Total", "Σύνολο")}</td><td class="r num">${A.toFixed(1)}</td><td class="r num">${fmtPower(cool)}</td><td class="r num">${fmtPower(qs)}</td><td class="r num">${fmtPower(ql)}</td><td class="r num">${cool > 0 ? (qs / cool).toFixed(2) : "—"}</td><td class="r num">${A > 0 ? Math.round(cool / A) : "—"}</td><td class="r num">${fmtPower(heat)}</td><td class="r num">${A > 0 ? Math.round(heat / A) : "—"}</td></tr></tbody></table>`;
+    const foot = (est ? `<div class="note">* ${tr("Estimated with the city's design values for that season and the default indoor set-point (cooling 24 °C / 45 %, heating 22 °C / 40 %).", "Εκτίμηση με τις συνθήκες σχεδιασμού της πόλης για εκείνη την εποχή και την προεπιλεγμένη εσωτερική θερμοκρασία (ψύξη 24 °C / 45 %, θέρμανση 22 °C / 40 %).")}</div>` : "")
+      + (none ? `<div class="note">— ${tr("Not calculated (custom conditions, only one season known).", "Δεν υπολογίστηκε (χειροκίνητες συνθήκες, είναι γνωστή μόνο η μία εποχή).")}</div>` : "");
+    return kpis + `<h2>${tr("Rooms", "Χώροι")}</h2>` + table + foot;
+  }
+
+  function methodNote() {
+    return `<div class="note"><b>${tr("Method", "Μεθοδολογία")}:</b> ${tr(
+      "steady-state peak loads, no diversity or safety factor. Conduction U·A·ΔT; solar gain through glazing = area × SHGC × shading × fixed peak irradiance per orientation (W/m²: N 120, NE/NW 220, E 350, SE 380, S 400, SW 450, W 500). Ventilation/infiltration from air mass flow with psychrometric enthalpy difference. Heating: transmission and ventilation losses, no internal gains credited. U values of the libraries are indicative; verify against the project's building physics study.",
+      "φορτία αιχμής σε μόνιμη κατάσταση, χωρίς συντελεστή ταυτοχρονισμού ή ασφαλείας. Αγωγιμότητα U·A·ΔT· ηλιακά κέρδη υαλοστασίων = επιφάνεια × SHGC × σκίαση × σταθερή ακτινοβολία αιχμής ανά προσανατολισμό (W/m²: Β 120, ΒΑ/ΒΔ 220, Α 350, ΝΑ 380, Ν 400, ΝΔ 450, Δ 500). Αερισμός/διείσδυση από παροχή μάζας αέρα με διαφορά ενθαλπίας. Θέρμανση: απώλειες αγωγιμότητας και αερισμού, χωρίς αφαίρεση εσωτερικών κερδών. Οι τιμές U των βιβλιοθηκών είναι ενδεικτικές· επιβεβαίωσέ τες με τη θερμομόνωση του έργου."
+    )}</div>`;
+  }
+
+  function openReport(title, body) {
+    const winRef = window.open("", "_blank");
+    if (!winRef) return;
+    winRef.document.write(`<!DOCTYPE html><html lang="${currentLang}"><head><meta charset="UTF-8"><title>${esc(title)} — ${esc(projectNameValue())}</title>`
+      + `<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">`
+      + `<style>${REPORT_CSS}</style></head><body>${body}<footer class="rep"><span>HVAC Load Calculator</span><span>${esc(projectNameValue())}</span></footer></body></html>`);
+    winRef.document.close();
+    winRef.focus();
+    setTimeout(() => winRef.print(), 400);
   }
 
   function exportLoadsPdf() {
-    const winRef = window.open("", "_blank");
-    if (!winRef) return;
-
-    const title = currentLang === "el" ? "Συνοπτική Αναφορά Φορτίων" : "Load Summary Report";
-    const project = projectNameValue();
-    const dateTxt = new Date().toLocaleString();
-    const rows = spaces.map((s, i) => {
-      const cool = spaceCoolTotal(s);
-      const heat = spaceHeatTotal(s);
-      return `<tr><td>${i+1}</td><td>${s.name}</td><td>${fmtPower(cool)}</td><td>${fmtPower(heat)}</td><td>${fmtPower(spaceCoolQs(s))}</td><td>${fmtPower(spaceCoolQl(s))}</td><td>${fmtPower(spaceHeatQs(s))}</td></tr>`;
-    }).join("");
-
-    const coolTot = spaces.reduce((a, s) => a + spaceCoolTotal(s), 0);
-    const heatTot = spaces.reduce((a, s) => a + spaceHeatTotal(s), 0);
-
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}.tot{font-weight:700;background:#f4f4f4}</style></head><body><h1>${title}</h1><p><b>${currentLang==='el'?'Έργο/Μελέτη':'Project'}:</b> ${project}</p><p><b>${currentLang==='el'?'Ημερομηνία':'Date'}:</b> ${dateTxt}</p><table><thead><tr><th>#</th><th>${currentLang==='el'?'Χώρος':'Room'}</th><th>${currentLang==='el'?'Ψύξη':'Cooling'}</th><th>${currentLang==='el'?'Απώλειες':'Heat losses'}</th><th>${currentLang==='el'?'Qs ψύξης':'Cooling Qs'}</th><th>${currentLang==='el'?'Ql ψύξης':'Cooling Ql'}</th><th>${currentLang==='el'?'Qs απωλειών':'Heat Qs'}</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Ψύξης':'Cooling Total'}</td><td colspan="5">${fmtPower(coolTot)}</td></tr><tr class="tot"><td colspan="2">${currentLang==='el'?'Σύνολο Απωλειών':'Heat Losses Total'}</td><td colspan="5">${fmtPower(heatTot)}</td></tr></tbody></table></body></html>`);
-    winRef.document.close();
-    winRef.focus();
-    setTimeout(() => winRef.print(), 250);
+    const title = tr("Load Summary Report", "Συνοπτική αναφορά φορτίων");
+    const rooms = reportRooms();
+    openReport(title, reportHeader(title) + summaryBlock(rooms) + methodNote());
   }
 
   function exportLoadsDetailedPdf() {
-    const winRef = window.open("", "_blank");
-    if (!winRef) return;
-
-    const title = currentLang === "el" ? "Αναλυτική Αναφορά Φορτίων" : "Detailed Load Report";
-    const project = projectNameValue();
-    const dateTxt = new Date().toLocaleString();
-
-    const coolItems = spaces.map((s) => ({ sensible: s.coolSensible || (s.mode === "cool" ? (s.sensible || {}) : {}), latent: s.coolLatent || (s.mode === "cool" ? (s.latent || {}) : {}) }));
-    const heatItems = spaces.map((s) => ({ sensible: s.heatSensible || (s.mode === "heat" ? (s.sensible || {}) : {}) }));
-
-    const totalCoolSens = mergeBreakdown(coolItems, "sensible");
-    const totalCoolLat = mergeBreakdown(coolItems, "latent");
-    const totalHeatSens = mergeBreakdown(heatItems, "sensible");
-
-    const coolTot = spaces.reduce((a, s) => a + spaceCoolTotal(s), 0);
-    const heatTot = spaces.reduce((a, s) => a + spaceHeatTotal(s), 0);
-    const totalCoolSensW = Object.values(totalCoolSens).reduce((a, v) => a + (Number(v) || 0), 0);
-    const totalCoolLatW = Object.values(totalCoolLat).reduce((a, v) => a + (Number(v) || 0), 0);
-    const totalCoolCombinedW = totalCoolSensW + totalCoolLatW;
-
-    const roomSections = spaces.map((s, i) => {
-      const assumptions = (s.assumptions || []).map((a) => `<li>${a}</li>`).join("");
-      const coolSensible = s.coolSensible || (s.mode === "cool" ? (s.sensible || {}) : {});
-      const coolLatent = s.coolLatent || (s.mode === "cool" ? (s.latent || {}) : {});
-      const heatSensible = s.heatSensible || (s.mode === "heat" ? (s.sensible || {}) : {});
-
-      return `<section style="page-break-after:always"><h2>${currentLang==='el'?'Χώρος':'Room'} ${i+1}: ${s.name}</h2><h3>${currentLang==='el'?'Παραδοχές':'Assumptions'}</h3><ul>${assumptions}</ul><h3>${currentLang==='el'?'Ψύξη':'Cooling'}</h3><p><b>${currentLang==='el'?'Σύνολο':'Total'}:</b> ${fmtPower(spaceCoolTotal(s))} | Qs=${fmtPower(spaceCoolQs(s))} | Ql=${fmtPower(spaceCoolQl(s))}</p>${breakdownTable(coolSensible, currentLang==='el'?'Αισθητά Ψύξης':'Cooling Sensible')} ${breakdownTable(coolLatent, currentLang==='el'?'Λανθάνοντα Ψύξης':'Cooling Latent')} <div style="margin-top:10px">${pieSvg({...coolSensible, ...coolLatent}, currentLang==='el'?'Κατανομή Ψύξης Χώρου':'Room Cooling Distribution')}</div><h3>${currentLang==='el'?'Απώλειες Θέρμανσης':'Heating Losses'}</h3><p><b>${currentLang==='el'?'Σύνολο':'Total'}:</b> ${fmtPower(spaceHeatTotal(s))} | Qs=${fmtPower(spaceHeatQs(s))}</p>${breakdownTable(heatSensible, currentLang==='el'?'Αισθητά Απωλειών':'Heating Sensible')}<div style="margin-top:10px">${pieSvg(heatSensible, currentLang==='el'?'Κατανομή Απωλειών Χώρου':'Room Heat-Loss Distribution')}</div></section>`;
+    const title = tr("Detailed Load Report", "Αναλυτική αναφορά φορτίων");
+    const rooms = reportRooms();
+    const coolItems = rooms.map((r) => ({ sensible: r.coolSensible || {}, latent: r.coolLatent || {} }));
+    const heatItems = rooms.map((r) => ({ sensible: r.heatSensible || {} }));
+    const bldCool = { ...mergeBreakdown(coolItems, "sensible"), ...Object.fromEntries(Object.entries(mergeBreakdown(coolItems, "latent")).map(([k, v]) => [k, v])) };
+    const bldHeat = mergeBreakdown(heatItems, "sensible");
+    const building = `<h2>${tr("Building breakdown", "Ανάλυση κτιρίου")}</h2><div class="cols"><div>${breakdownTableR(tr("Cooling (sensible + latent)", "Ψύξη (αισθητό + λανθάνον)"), bldCool, false)}</div><div>${breakdownTableR(tr("Heat losses", "Θερμικές απώλειες"), bldHeat, true)}</div></div>`;
+    const roomPages = rooms.map((r, i) => {
+      const a = roomArea(r), c = spaceCoolTotal(r), h = spaceHeatTotal(r), qs = spaceCoolQs(r), ql = spaceCoolQl(r);
+      const kp = `<div class="kpis">
+        <div class="kpi cool"><div class="l">${tr("Cooling load", "Ψυκτικό φορτίο")}</div><div class="v">${fmtPower(c)}</div><div class="s">${fmtBoth(c)}</div></div>
+        <div class="kpi cool"><div class="l">Qs · Ql · SHR</div><div class="v">${c > 0 ? (qs / c).toFixed(2) : "—"}</div><div class="s">${fmtPower(qs)} · ${fmtPower(ql)}</div></div>
+        <div class="kpi heat"><div class="l">${tr("Heat losses", "Θερμικές απώλειες")}</div><div class="v">${fmtPower(h)}</div><div class="s">${fmtBoth(h)}</div></div>
+        <div class="kpi"><div class="l">${tr("Area · specific load", "Εμβαδόν · ειδικό φορτίο")}</div><div class="v">${a.toFixed(1)} m²</div><div class="s">${fmtSpecific(c, a)}</div></div>
+      </div>`;
+      return `<section class="room"><h2>${tr("Room", "Χώρος")} ${i + 1}: ${esc(r.name)}</h2>${kp}
+        <div class="cols"><div>${breakdownTableR(tr("Cooling — sensible", "Ψύξη — αισθητά"), r.coolSensible, false)}${breakdownTableR(tr("Cooling — latent", "Ψύξη — λανθάνοντα"), r.coolLatent, false)}</div>
+        <div>${breakdownTableR(tr("Heat losses", "Θερμικές απώλειες"), r.heatSensible, true)}</div></div>
+        <h3>${tr("Input data", "Δεδομένα εισόδου")}</h3>${inputsTableHtml(r.inputs)}</section>`;
     }).join("");
-
-    const summaryPage = `<section><h2>${currentLang==='el'?'Σύνοψη Κτιρίου':'Building Summary'}</h2><p><b>${currentLang==='el'?'Σύνολο Ψύξης':'Cooling Total'}:</b> ${fmtPower(coolTot)}</p><p><b>${currentLang==='el'?'Σύνολο Απωλειών':'Heat Losses Total'}:</b> ${fmtPower(heatTot)}</p><p><b>${currentLang==='el'?'Συνολικό Αισθητό Ψύξης':'Total Cooling Sensible'}:</b> ${fmtPower(totalCoolSensW)}</p><p><b>${currentLang==='el'?'Συνολικό Λανθάνον Ψύξης':'Total Cooling Latent'}:</b> ${fmtPower(totalCoolLatW)}</p><p><b>${currentLang==='el'?'Συνολικό Φορτίο Ψύξης (Qs+Ql)':'Total Cooling Load (Qs+Ql)'}:</b> ${fmtPower(totalCoolCombinedW)}</p><h3>${currentLang==='el'?'Συνολικό Αισθητό Ψύξης':'Total Cooling Sensible'}</h3>${breakdownTable(totalCoolSens, currentLang==='el'?'Αισθητά Ψύξης':'Cooling Sensible')}<h3>${currentLang==='el'?'Συνολικό Λανθάνον Ψύξης':'Total Cooling Latent'}</h3>${breakdownTable(totalCoolLat, currentLang==='el'?'Λανθάνοντα Ψύξης':'Cooling Latent')}<h3>${currentLang==='el'?'Συνολικό Αισθητό Απωλειών':'Total Heating Sensible'}</h3>${breakdownTable(totalHeatSens, currentLang==='el'?'Αισθητά Απωλειών':'Heating Sensible')}<div style="margin-top:10px">${pieSvg({...totalCoolSens, ...totalCoolLat}, currentLang==='el'?'Κατανομή Ψύξης Κτιρίου':'Building Cooling Distribution')}</div><div style="margin-top:10px">${pieSvg(totalHeatSens, currentLang==='el'?'Κατανομή Απωλειών Κτιρίου':'Building Heat-Loss Distribution')}</div></section>`;
-
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px;line-height:1.35}table{border-collapse:collapse;width:100%;margin-bottom:10px}td,th{border:1px solid #ccc;padding:8px;text-align:left}h1,h2,h3,h4{margin:0 0 8px}section{margin-bottom:16px}</style></head><body><h1>${title}</h1><p><b>${currentLang==='el'?'Έργο/Μελέτη':'Project'}:</b> ${project}</p><p><b>${currentLang==='el'?'Ημερομηνία':'Date'}:</b> ${dateTxt}</p>${roomSections}${summaryPage}</body></html>`);
-    winRef.document.close();
-    winRef.focus();
-    setTimeout(() => winRef.print(), 300);
+    openReport(title, reportHeader(title) + summaryBlock(rooms) + building + methodNote() + roomPages);
   }
 
   function exportPsychroPdf() {
@@ -1810,42 +2128,97 @@
       if (h) h.textContent = currentLang === "el" ? "Δεν υπάρχουν ψυχρομετρικά δεδομένα για export." : "No psychrometrics data to export.";
       return;
     }
-    const winRef = window.open("", "_blank");
-    if (!winRef) return;
-    const title = currentLang === "el" ? "Αναφορά Ψυχρομετρίας" : "Psychrometrics Report";
-    winRef.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Segoe UI;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${title}</h1><p>${currentLang==='el'?'Χώρος':'Room'}: ${room?room.name:(currentLang==='el'?'Τρέχον':'Current')}</p><table><tbody><tr><th>SA [m3/h]</th><td>${data.VsaH.toFixed(0)}</td></tr><tr><th>Tmix [degC]</th><td>${data.Tm.toFixed(2)}</td></tr><tr><th>Tsa [degC]</th><td>${data.Tsa.toFixed(2)}</td></tr><tr><th>RHsa [%]</th><td>${data.RHs.toFixed(1)}</td></tr><tr><th>${tr("Qcoil total", "Συνολικό φορτίο στοιχείου")}</th><td>${fmtPower(data.Qct)}</td></tr><tr><th>Qs</th><td>${fmtPower(data.Qcs)}</td></tr><tr><th>Ql</th><td>${fmtPower(data.Qcl)}</td></tr></tbody></table></body></html>`);
-    winRef.document.close();
-    winRef.focus();
-    setTimeout(() => winRef.print(), 250);
+    const title = tr("Psychrometrics Report", "Αναφορά ψυχρομετρίας");
+    const rowsP = [
+      ["SA [m³/h]", data.VsaH.toFixed(0)], ["Tmix [°C]", data.Tm.toFixed(2)], ["Tsa [°C]", data.Tsa.toFixed(2)], ["RHsa [%]", data.RHs.toFixed(1)],
+      [tr("Coil total", "Συνολικό φορτίο στοιχείου"), fmtPower(data.Qct)], ["Qs", fmtPower(data.Qcs)], ["Ql", fmtPower(data.Qcl)]
+    ].map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r num">${esc(v)}</td></tr>`).join("");
+    openReport(title, reportHeader(title) + `<h2>${tr("Room", "Χώρος")}: ${esc(room ? room.name : tr("Current", "Τρέχον"))}</h2><table><tbody>${rowsP}</tbody></table>`);
+  }
+
+
+  // ---------- input data as a readable table (live result, reports) ----------
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function optLabel(id, value) {
+    const it = (OPTIONS[id] || []).find((o) => !o.group && o.v === value);
+    return it ? it[currentLang] : (value ?? "");
+  }
+  const fnum = (v, d = 1) => { const n = parseFloat(v); return Number.isFinite(n) ? n.toFixed(d) : "—"; };
+  function geomFromData(d) {
+    const H = parseFloat(d.H) || 0;
+    if (d.GeoMode === "area") { const A = Math.max(0, parseFloat(d.Afloor) || 0); return { mode: "area", A, H, V: A * H }; }
+    const L = parseFloat(d.L) || 0, W = parseFloat(d.W) || 0;
+    return { mode: "dims", A: L * W, H, V: L * W * H, L, W };
+  }
+  function uText(presetId, customId, d) {
+    const v = d[presetId];
+    if (v === "custom") return `${tr("Custom", "Χειροκίνητο")} — U = ${fnum(d[customId], 2)} W/m²K`;
+    return optLabel(presetId, v);
+  }
+  function inputsTableHtml(d) {
+    if (!d) return "";
+    const g = geomFromData(d);
+    const rows = [];
+    const sec = (t) => rows.push(`<tr class="grp"><th colspan="2">${esc(t)}</th></tr>`);
+    const row = (k, v) => rows.push(`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`);
+    sec(tr("Geometry", "Γεωμετρία"));
+    if (g.mode === "dims") row(tr("Length × width", "Μήκος × πλάτος"), `${fnum(g.L, 2)} × ${fnum(g.W, 2)} m`);
+    row(tr("Floor area", "Εμβαδόν δαπέδου"), `${g.A.toFixed(1)} m²`);
+    row(tr("Height · volume", "Ύψος · όγκος"), `${g.H.toFixed(2)} m · ${g.V.toFixed(1)} m³`);
+    sec(tr("Design conditions", "Συνθήκες σχεδιασμού"));
+    row(tr("Mode", "Λειτουργία"), optLabel("Mode", d.Mode));
+    row(tr("City", "Πόλη"), optLabel("city", d.city));
+    row(tr("Indoor", "Εσωτερικά"), `${fnum(d.Tin)} °C · ${fnum(d.RHin, 0)} %`);
+    row(tr("Outdoor", "Εξωτερικά"), `${fnum(d.Tout)} °C · ${fnum(d.RHout, 0)} %`);
+    row(tr("Unconditioned space · space above · ground", "Μη κλιματιζόμενος · χώρος από πάνω · έδαφος"), `${fnum(d.Tadj)} · ${fnum(d.Tattic)} · ${fnum(d.Tground)} °C`);
+    sec(tr("Envelope", "Κέλυφος"));
+    row(tr("External walls", "Εξωτερικοί τοίχοι"), `${uText("UwallPreset", "UwallCustom", d)} · ${fnum(d.LwallExt)} m`);
+    const unhTxt = (!d.UwallUnhPreset || d.UwallUnhPreset === "same") ? tr("same as external wall", "ίδιος με τον εξωτερικό") : uText("UwallUnhPreset", "UwallUnhCustom", d);
+    row(tr("Walls to unconditioned space", "Τοίχοι προς μη κλιματιζόμενο"), `${unhTxt} · ${fnum(d.LwallUnh)} m`);
+    row(tr("Windows", "Κουφώματα"), `${uText("UwinPreset", "UwinCustom", d)} · SHGC ${optLabel("SHGCpreset", d.SHGCpreset)}`);
+    (d.__win || []).forEach(([o, a, sh]) => row(`  ${orientLabel(o)}`, `${fnum(a)} m² · ${tr("shading", "σκίαση")} ${fnum(sh, 2)}`));
+    row(tr("Roof", "Οροφή"), `${uText("UroofPreset", "UroofCustom", d)} · ${fnum(d.RoofPctExt, 0)}% ${tr("outdoor", "εξωτ.")} · ${fnum(d.RoofPctUnh, 0)}% ${tr("uncond.", "μη κλιμ.")} · ${fnum(d.RoofPctHeated, 0)}% ${tr("cond.", "κλιμ.")}`);
+    row(tr("Floor", "Δάπεδο"), `${uText("UfloorPreset", "UfloorCustom", d)} · ${fnum(d.FloorPctGround, 0)}% ${tr("ground/pilotis", "έδαφος/πιλοτή")} · ${fnum(d.FloorPctUnh, 0)}% ${tr("uncond.", "μη κλιμ.")} · ${fnum(d.FloorPctHeated, 0)}% ${tr("cond.", "κλιμ.")}`);
+    sec(tr("Ventilation", "Αερισμός"));
+    row(tr("Infiltration · natural", "Διείσδυση · φυσικός"), `${optLabel("ACHinf", d.ACHinf)} · ${optLabel("ACHnat", d.ACHnat)}`);
+    row(tr("Infiltration air from", "Αέρας διείσδυσης από"), optLabel("InfSource", d.InfSource || "out"));
+    row(tr("Mechanical (outdoor air)", "Μηχανικός (νωπός αέρας)"), d.MechMode === "flow" ? `${fnum(d.Qmech, 0)} m³/h` : `${fnum(d.ACHmech, 1)} ACH`);
+    sec(tr("Internal gains", "Εσωτερικά φορτία"));
+    row(tr("People", "Άτομα"), `${fnum(d.nPeople, 0)} × ${optLabel("PeopleActivity", d.PeopleActivity)}`);
+    row(tr("Lighting · equipment", "Φωτισμός · εξοπλισμός"), `${fnum(d.LightingWm2, 0)} W/m² · ${fnum(d.EquipWm2 || 0, 0)} W/m²`);
+    (d.__dev || []).forEach(([key, name, W, duty]) => {
+      const lib = key ? devByKey(key) : null;
+      row(`  ${lib ? devName(lib) : (name === "Custom" ? tr("Custom", "Χειροκίνητο") : name)}`, `${fnum(W, 0)} W × ${fnum(duty, 2)}`);
+    });
+    return `<table class="lc-intable">${rows.join("")}</table>`;
   }
 
   function renderAssumptions() {
     const host = $("assumptionsList");
     if (!host) return;
-    const items = [];
-    const mode = str("Mode", "cool");
-    const modeTxt = currentLang === "el" ? (mode === "cool" ? "Ψύξη" : "Θέρμανση") : (mode === "cool" ? "Cooling" : "Heating");
-    items.push(`${currentLang==='el'?'Λειτουργία':'Mode'}: ${modeTxt}`);
-    items.push(`${currentLang==='el'?'Πόλη':'City'}: ${$("city")?.selectedOptions?.[0]?.textContent || '-'}`);
-    items.push(`Tin/RHin: ${num("Tin",24).toFixed(1)} degC / ${num("RHin",45).toFixed(0)}%`);
-    items.push(`Tout/RHout: ${num("Tout",36).toFixed(1)} degC / ${num("RHout",40).toFixed(0)}%`);
-    items.push(`Wall U: ${$("UwallPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
-    items.push(`Window U: ${$("UwinPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
-    items.push(`Roof U: ${$("UroofPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
-    items.push(`Floor U: ${$("UfloorPreset")?.selectedOptions?.[0]?.textContent || '-'}`);
-    items.push(`Mech: ${$("MechMode")?.selectedOptions?.[0]?.textContent || '-'} | ${num("Qmech",0).toFixed(0)} m3/h`);
-    host.innerHTML = items.map((x)=>`- ${x}`).join('<br/>');
+    const items = [
+      `${tr("Mode", "Λειτουργία")}: ${optLabel("Mode", str("Mode", "cool"))}`,
+      `${tr("City", "Πόλη")}: ${$("city")?.selectedOptions?.[0]?.textContent || "-"}`,
+      `${tr("Indoor", "Εσωτερικά")}: ${num("Tin", 24).toFixed(1)} °C / ${num("RHin", 45).toFixed(0)}%`,
+      `${tr("Outdoor", "Εξωτερικά")}: ${num("Tout", 36).toFixed(1)} °C / ${num("RHout", 40).toFixed(0)}%`,
+      `${tr("External wall", "Εξωτερικός τοίχος")}: ${$("UwallPreset")?.selectedOptions?.[0]?.textContent || "-"}`,
+      `${tr("Windows", "Κουφώματα")}: ${$("UwinPreset")?.selectedOptions?.[0]?.textContent || "-"}`,
+      `${tr("Roof", "Οροφή")}: ${$("UroofPreset")?.selectedOptions?.[0]?.textContent || "-"}`,
+      `${tr("Floor", "Δάπεδο")}: ${$("UfloorPreset")?.selectedOptions?.[0]?.textContent || "-"}`,
+      `${tr("Mechanical ventilation", "Μηχανικός αερισμός")}: ${$("MechMode")?.selectedOptions?.[0]?.textContent || "-"} | ${num("Qmech", 0).toFixed(0)} m³/h`
+    ];
+    host.innerHTML = items.map((x) => `- ${esc(x)}`).join("<br/>");
   }
 
   const COMP_EL = {
     "External walls": "Εξωτερικοί τοίχοι",
-    "Walls to unconditioned": "Τοίχοι προς μη θερμαινόμενο",
+    "Walls to unconditioned": "Τοίχοι προς μη κλιματιζόμενο",
     "Roof to outdoor": "Οροφή προς εξωτερικό",
-    "Roof to unconditioned": "Οροφή προς μη θερμαινόμενο",
+    "Roof to unconditioned": "Οροφή προς μη κλιματιζόμενο",
     "Windows conduction": "Υαλοστάσια αγωγιμότητα",
     "Windows solar": "Ηλιακά κέρδη υαλοστασίων",
     "Floor to ground/pilotis": "Δάπεδο προς έδαφος/pilotis",
-    "Floor to unconditioned": "Δάπεδο προς μη θερμαινόμενο",
+    "Floor to unconditioned": "Δάπεδο προς μη κλιματιζόμενο",
     "Ventilation sensible": "Αερισμός αισθητό",
     "Lighting": "Φωτισμός",
     "Equipment": "Εξοπλισμός",
@@ -1859,27 +2232,49 @@
     "Windows conduction losses": "Απώλειες αγωγιμότητας υαλοστασίων",
     "Floor to ground/pilotis losses": "Απώλειες δαπέδου προς έδαφος/pilotis",
     "Floor to unconditioned losses": "Απώλειες δαπέδου προς μη θερμαινόμενο",
-    "Ventilation sensible losses": "Απώλειες αερισμού"
+    "Ventilation sensible losses": "Απώλειες αερισμού",
+    "Windows to unconditioned": "Υαλοστάσια προς μη κλιματιζόμενο",
+    "Windows to unconditioned losses": "Απώλειες υαλοστασίων προς μη κλιματιζόμενο"
   };
 
   function compName(name) {
     return currentLang === "el" ? (COMP_EL[name] || name) : name;
   }
 
-  function computeLoadsForMode(modeForced) {
+  // Room geometry. "dims": L x W (legacy). "area": floor area typed directly.
+  function roomGeom() {
+    const H = num("H", 0);
+    if (str("GeoMode", "dims") === "area") {
+      const A = Math.max(0, num("Afloor", 0));
+      return { mode: "area", A, H, V: A * H, perim: null };
+    }
+    const L = num("L", 0), Wm = num("W", 0);
+    return { mode: "dims", A: L * Wm, H, V: L * Wm * H, perim: Math.max(0, 2 * (L + Wm)) };
+  }
+
+  const wallUFrom = (presetId, customId, dflt) => (str(presetId) === "custom" ? num(customId, dflt) : parseFloat(str(presetId, String(dflt))));
+
+  // Single source of truth for the load model (used by the live result and by saved rooms).
+  function computeCore(modeForced) {
     enforceWallConsistency();
-    const Tin = num("Tin", modeForced === "cool" ? 24 : 22);
-    const RHin = num("RHin", modeForced === "cool" ? 45 : 40);
+    const mode = modeForced;
+    const cool = mode === "cool";
+    const Tin = num("Tin", cool ? 24 : 22);
+    const RHin = num("RHin", cool ? 45 : 40);
     const Tout = num("Tout", 36);
     const RHout = num("RHout", 40);
-    const Tadj = num("Tadj", modeForced === "cool" ? 30 : 12);
-    const Tground = num("Tground", modeForced === "cool" ? 15 : 12);
-    const Tattic = num("Tattic", modeForced === "cool" ? 35 : 8);
+    const Tadj = num("Tadj", cool ? 30 : 12);
+    const Tground = num("Tground", cool ? 15 : 12);
+    const Tattic = num("Tattic", cool ? 35 : 8);
 
-    const L = num("L", 0), Wm = num("W", 0), H = num("H", 0), Afloor = L * Wm, Aroof = Afloor, V = L * Wm * H;
-    const dTbase = Math.max(0, modeForced === "cool" ? Tout - Tin : Tin - Tout);
+    const g = roomGeom();
+    const H = g.H, Afloor = g.A, Aroof = Afloor, V = g.V;
+    const dTbase = Math.max(0, cool ? Tout - Tin : Tin - Tout);
+    const dTadj = Math.max(0, cool ? Tadj - Tin : Tin - Tadj);
 
-    const Uwall = str("UwallPreset") === "custom" ? num("UwallCustom", 0.7) : parseFloat(str("UwallPreset", "0.7"));
+    const Uwall = wallUFrom("UwallPreset", "UwallCustom", 0.7);
+    const unhSel = str("UwallUnhPreset", "same");
+    const UwallUnh = (!unhSel || unhSel === "same") ? Uwall : wallUFrom("UwallUnhPreset", "UwallUnhCustom", 0.7);
     const Uwin = str("UwinPreset") === "custom" ? num("UwinCustom", 2.8) : parseFloat(str("UwinPreset", "2.8"));
     const Uroof = str("UroofPreset") === "custom" ? num("UroofCustom", 0.35) : parseFloat(str("UroofPreset", "0.35"));
 
@@ -1887,9 +2282,9 @@
     let Ufloor = 0.5, floorBoundary = "ground";
     if (floorPreset === "custom") Ufloor = num("UfloorCustom", 0.5);
     else if (floorPreset.includes("|")) {
-      const [b, u] = floorPreset.split("|");
+      const [bnd, u] = floorPreset.split("|");
       Ufloor = parseFloat(u);
-      floorBoundary = (b || "g").trim().toLowerCase() === "p" ? "pilotis" : "ground";
+      floorBoundary = (bnd || "g").trim().toLowerCase() === "p" ? "pilotis" : "ground";
       if (!Number.isFinite(Ufloor)) Ufloor = 0.5;
     } else {
       Ufloor = parseFloat(floorPreset);
@@ -1899,55 +2294,89 @@
     const SHGC = num("SHGCpreset", 0.7), Lext = num("LwallExt", 0), Lunh = num("LwallUnh", 0);
     const AextWall = Lext * H, AunhWall = Lunh * H;
 
-    let Awin = 0, QwinCond = 0, QwinSolar = 0;
+    // Windows. Orientation "UNH" = window to an unconditioned space: conduction with Tadj, no solar.
+    let Awin = 0, QwinCond = 0, QwinSolar = 0, AwinU = 0, QwinUnh = 0;
     const orientMap = { N: 120, NE: 220, E: 350, SE: 380, S: 400, SW: 450, W: 500, NW: 220 };
     document.querySelectorAll("#winTable tbody tr").forEach((tr) => {
       const o = tr.querySelector(".wg-orient")?.value || "S";
       const a = parseFloat(tr.querySelector(".wg-area")?.value) || 0;
-      const sh = parseFloat(tr.querySelector(".wg-shade")?.value) || 1;
+      const shRaw = parseFloat(tr.querySelector(".wg-shade")?.value);
+      const sh = Number.isFinite(shRaw) ? shRaw : 1; // 0 = fully shaded (was treated as 1 before v9)
+      if (o === "UNH") {
+        AwinU += a;
+        QwinUnh += a * Uwin * dTadj;
+        return;
+      }
       Awin += a;
       QwinCond += a * Uwin * dTbase;
-      if (modeForced === "cool") QwinSolar += a * SHGC * (orientMap[o] || 350) * clamp(sh, 0, 1);
+      if (cool) QwinSolar += a * SHGC * (orientMap[o] || 350) * clamp(sh, 0, 1);
     });
 
-    const AextNet = Math.max(0, AextWall - Awin), QwallExt = AextNet * Uwall * dTbase, QwallUnh = AunhWall * Uwall * Math.max(0, modeForced === "cool" ? Tadj - Tin : Tin - Tadj);
+    const AextNet = Math.max(0, AextWall - Awin);
+    const QwallExt = AextNet * Uwall * dTbase;
+    const AunhNet = AwinU > 0 ? Math.max(0, AunhWall - AwinU) : AunhWall;
+    const QwallUnh = AunhNet * UwallUnh * dTadj;
 
     let RpE = clamp(num("RoofPctExt", 100) / 100, 0, 1), RpU = clamp(num("RoofPctUnh", 0) / 100, 0, 1), RpH = clamp(num("RoofPctHeated", 0) / 100, 0, 1);
     let FpG = clamp(num("FloorPctGround", 100) / 100, 0, 1), FpU = clamp(num("FloorPctUnh", 0) / 100, 0, 1), FpH = clamp(num("FloorPctHeated", 0) / 100, 0, 1);
-
-    const roofSum = RpE + RpU + RpH; if (roofSum > 1) { RpE/=roofSum; RpU/=roofSum; RpH/=roofSum; }
-    const floorSum = FpG + FpU + FpH; if (floorSum > 1) { FpG/=floorSum; FpU/=floorSum; FpH/=floorSum; }
+    const roofSum = RpE + RpU + RpH; if (roofSum > 1) { RpE /= roofSum; RpU /= roofSum; RpH /= roofSum; }
+    const floorSum = FpG + FpU + FpH; if (floorSum > 1) { FpG /= floorSum; FpU /= floorSum; FpH /= floorSum; }
 
     const QroofExt = (Aroof * RpE) * Uroof * dTbase;
-    const QroofUnh = (Aroof * RpU) * Uroof * Math.max(0, modeForced === "cool" ? Tattic - Tin : Tin - Tattic);
-
-    const dTfloorGround = floorBoundary === "pilotis" ? dTbase : (modeForced === "cool" ? 0 : Math.max(0, Tin - Tground));
+    const QroofUnh = (Aroof * RpU) * Uroof * Math.max(0, cool ? Tattic - Tin : Tin - Tattic);
+    const dTfloorGround = floorBoundary === "pilotis" ? dTbase : (cool ? 0 : Math.max(0, Tin - Tground));
     const QfloorG = (Afloor * FpG) * Ufloor * dTfloorGround;
-    const QfloorU = (Afloor * FpU) * Ufloor * Math.max(0, modeForced === "cool" ? Tadj - Tin : Tin - Tadj);
+    const QfloorU = (Afloor * FpU) * Ufloor * dTadj;
 
+    // Ventilation
     const ACHinf = num("ACHinf", 0), ACHnat = num("ACHnat", 0), mechMode = str("MechMode", "ach");
     let ACHmech = 0; const Qmech = num("Qmech", 0) / 3600; if (mechMode === "ach") ACHmech = num("ACHmech", 0);
-
-    const Vdot = ((ACHinf + ACHnat + ACHmech) * V / 3600) + Qmech, mdot = Vdot * rho;
     const win = wTRH(Tin, RHin), wout = wTRH(Tout, RHout), hin = hTw(Tin, win), hout = hTw(Tout, wout), dTv = Math.abs(Tout - Tin);
+    const infFromAdj = str("InfSource", "out") === "adj";
 
-    const QventS = mdot * cp * dTv * 1000;
-    let QventL = 0;
-    if (modeForced === "cool") {
-      const Qtv = mdot * Math.max(0, hout - hin) * 1000;
-      QventL = Math.max(0, Qtv - QventS);
+    let QventS, QventL = 0;
+    if (!infFromAdj) {
+      // legacy: infiltration + natural + mechanical all at outdoor conditions
+      const Vdot = ((ACHinf + ACHnat + ACHmech) * V / 3600) + Qmech, mdot = Vdot * rho;
+      QventS = mdot * cp * dTv * 1000;
+      if (cool) QventL = Math.max(0, mdot * Math.max(0, hout - hin) * 1000 - QventS);
+    } else {
+      // infiltration + natural ventilation at Tadj with the outdoor humidity ratio; mechanical from outdoors
+      const mInf = ((ACHinf + ACHnat) * V / 3600) * rho;
+      const mMec = (((ACHmech * V) / 3600) + Qmech) * rho;
+      const hadj = hTw(Tadj, wout);
+      const SInf = mInf * cp * Math.abs(Tadj - Tin) * 1000;
+      const SMec = mMec * cp * dTv * 1000;
+      QventS = SInf + SMec;
+      if (cool) {
+        QventL = Math.max(0, mInf * Math.max(0, hadj - hin) * 1000 - SInf) + Math.max(0, mMec * Math.max(0, hout - hin) * 1000 - SMec);
+      }
     }
 
-    const nPeople = num("nPeople", 0), [Ps, Pl] = str("PeopleActivity", "100|75").split("|").map(parseFloat), QpS = nPeople * (Number.isFinite(Ps) ? Ps : 100), QpL = nPeople * (Number.isFinite(Pl) ? Pl : 75), Qlight = num("LightingWm2", 8) * Afloor;
+    const VdotM = ((ACHmech * V) / 3600) + Qmech;
+    const mdotM = VdotM * rho;
+    const QmechS = mdotM * cp * dTv * 1000;
+    let QmechL = 0;
+    if (cool) QmechL = Math.max(0, mdotM * Math.max(0, hout - hin) * 1000 - QmechS);
+
+    const nPeople = num("nPeople", 0);
+    const [Ps, Pl] = str("PeopleActivity", "100|75").split("|").map(parseFloat);
+    const QpS = nPeople * (Number.isFinite(Ps) ? Ps : 100);
+    const QpL = nPeople * (Number.isFinite(Pl) ? Pl : 75);
+    const Qlight = num("LightingWm2", 8) * Afloor;
+
     let Qdev = 0;
     document.querySelectorAll("#devTable tbody tr").forEach((tr) => {
       const Wv = parseFloat(tr.querySelector(".dv-W")?.value) || 0;
-      const duty = clamp(parseFloat(tr.querySelector(".dv-duty")?.value) || 1, 0, 1);
+      const dRaw = parseFloat(tr.querySelector(".dv-duty")?.value);
+      const duty = clamp(Number.isFinite(dRaw) ? dRaw : 1, 0, 1); // 0 = off (was treated as 1 before v9)
       Qdev += Wv * duty;
     });
+    const EquipWm2 = Math.max(0, num("EquipWm2", 0));
+    if (EquipWm2 > 0) Qdev += EquipWm2 * Afloor;
 
     let sensible = {}, latent = {};
-    if (modeForced === "cool") {
+    if (cool) {
       sensible = {
         "External walls": QwallExt,
         "Walls to unconditioned": QwallUnh,
@@ -1962,6 +2391,7 @@
         "Equipment": Qdev,
         "People sensible": QpS
       };
+      if (AwinU > 0) sensible["Windows to unconditioned"] = QwinUnh;
       latent = { "Ventilation latent": QventL, "People latent": QpL };
     } else {
       sensible = {
@@ -1974,12 +2404,20 @@
         "Floor to unconditioned losses": QfloorU,
         "Ventilation sensible losses": QventS
       };
+      if (AwinU > 0) sensible["Windows to unconditioned losses"] = QwinUnh;
       latent = {};
     }
 
-    const Qs = Object.values(sensible).reduce((a, b) => a + b, 0), Ql = Object.values(latent).reduce((a, b) => a + b, 0), Qt = Qs + Ql;
-    return { mode: modeForced, Qs, Ql, Qt, sensible, latent };
+    const Qs = Object.values(sensible).reduce((x, y) => x + y, 0);
+    const Ql = Object.values(latent).reduce((x, y) => x + y, 0);
+    return { mode, Qs, Ql, Qt: Qs + Ql, sensible, latent, VdotM, QmechS, QmechL, Afloor, V };
   }
+
+  function computeLoadsForMode(modeForced) {
+    const r = computeCore(modeForced);
+    return { mode: r.mode, Qs: r.Qs, Ql: r.Ql, Qt: r.Qt, sensible: r.sensible, latent: r.latent };
+  }
+
   function bindCustomSelect(presetId, customId) {
     const p = $(presetId);
     const c = $(customId);
@@ -2033,10 +2471,25 @@
     return Math.max(0, 2 * (num("L", 0) + num("W", 0)));
   }
 
+  const isAreaMode = () => str("GeoMode", "dims") === "area";
+
+  function syncDerivedUi() {
+    document.body.setAttribute("data-geo", isAreaMode() ? "area" : "dims");
+    if ($("H_display")) $("H_display").value = $("H")?.value || "";
+    const g = roomGeom();
+    const info = $("geoInfo");
+    if (info) {
+      info.textContent = g.mode === "dims"
+        ? `${tr("Floor area", "Εμβαδόν")} ${g.A.toFixed(1)} m² · ${tr("volume", "όγκος")} ${g.V.toFixed(1)} m³ · ${tr("perimeter", "περίμετρος")} ${g.perim.toFixed(1)} m`
+        : `${tr("Volume", "Όγκος")} ${g.V.toFixed(1)} m³ · ${tr("wall lengths are not limited by a perimeter in this mode", "σε αυτόν τον τρόπο τα μήκη τοίχων δεν περιορίζονται από περίμετρο")}`;
+    }
+  }
+
   function enforceWallConsistency(changedId = "") {
     const extEl = $("LwallExt");
     const unhEl = $("LwallUnh");
     if (!extEl || !unhEl) return;
+    if (isAreaMode()) { updateWallHint(); return; } // no perimeter known when area is typed
 
     let ext = Math.max(0, parseFloat(extEl.value) || 0);
     let unh = Math.max(0, parseFloat(unhEl.value) || 0);
@@ -2062,6 +2515,12 @@
   function updateWallHint() {
     const hint = $("wallPctHint");
     if (!hint) return;
+    if (isAreaMode()) {
+      const Hh = num("H", 0);
+      const ext = Math.max(0, num("LwallExt", 0)), unh = Math.max(0, num("LwallUnh", 0));
+      hint.innerHTML = `${tr("Wall areas", "Επιφάνειες τοίχων")}: ${tr("external", "εξωτερικοί")} ${(ext * Hh).toFixed(1)} m² | ${tr("to unconditioned", "προς μη κλιματιζόμενο")} ${(unh * Hh).toFixed(1)} m² (${tr("gross, before windows", "μικτές, πριν αφαιρεθούν τα υαλοστάσια")})`;
+      return;
+    }
     const perim = wallPerimeter();
     const ext = Math.max(0, num("LwallExt", 0));
     const unh = Math.max(0, num("LwallUnh", 0));
@@ -2167,17 +2626,35 @@
   const winTableBody = document.querySelector("#winTable tbody");
   const orientations = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
+  const ORIENT_EL = { N: "Βόρειος", NE: "Βορειοανατολικός", E: "Ανατολικός", SE: "Νοτιοανατολικός", S: "Νότιος", SW: "Νοτιοδυτικός", W: "Δυτικός", NW: "Βορειοδυτικός" };
+  const ORIENT_EN = { N: "North", NE: "North-east", E: "East", SE: "South-east", S: "South", SW: "South-west", W: "West", NW: "North-west" };
+  const orientLabel = (x) => (x === "UNH"
+    ? tr_("To unconditioned space (no sun)", "Προς μη κλιματιζόμενο (χωρίς ήλιο)")
+    : `${(currentLang === "el" ? ORIENT_EL : ORIENT_EN)[x] || x} (${x})`);
+  const orientOptions = (sel) => orientations.concat(["UNH"]).map((x) => `<option value="${x}" ${x === sel ? "selected" : ""}>${orientLabel(x)}</option>`).join("");
+
+  // re-label table rows after a language change
+  function relabelTables() {
+    document.querySelectorAll("#winTable .wg-orient").forEach((sel) => { const v = sel.value; sel.innerHTML = orientOptions(v); sel.value = v; });
+    document.querySelectorAll("#devTable tbody tr").forEach((tr) => {
+      const lib = tr.dataset.key ? devByKey(tr.dataset.key) : null;
+      const cell = tr.querySelector(".dv-name");
+      if (cell && lib) cell.textContent = devName(lib);
+      else if (cell && tr.dataset.name === "Custom") cell.textContent = tr_("Custom", "Χειροκίνητο");
+    });
+  }
+
   function addWindowRow(o = "W", area = 3, shade = 1) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>
-        <select class="wg-orient">
-          ${orientations.map((x) => `<option value="${x}" ${x === o ? "selected" : ""}>${x}</option>`).join("")}
+        <select class="wg-orient" aria-label="orientation">
+          ${orientOptions(o)}
         </select>
       </td>
-      <td><input class="wg-area" type="number" step="0.1" value="${area}"></td>
-      <td><input class="wg-shade" type="number" step="0.1" value="${shade}"></td>
-      <td><button class="ghost wg-del" type="button">x</button></td>
+      <td><input class="wg-area" type="number" step="0.1" value="${area}" aria-label="m²"></td>
+      <td><input class="wg-shade" type="number" step="0.1" value="${shade}" aria-label="shading"></td>
+      <td><button class="ghost wg-del" type="button" aria-label="x">x</button></td>
     `;
     tr.querySelector(".wg-del")?.addEventListener("click", () => { tr.remove(); setSelectedRoomDirty(true); renderLiveChecks(); });
     tr.querySelectorAll("input,select").forEach((el) => {
@@ -2187,30 +2664,87 @@
     winTableBody?.appendChild(tr);
   }
 
+  // Typical sensible heat gains [W] while operating. Check datasheets for real projects.
+  // The first 10 entries keep their pre-v9 index (saved studies refer to them).
+  const DEV_CATS = {"office": {"en": "Office", "el": "Γραφείο"}, "it": {"en": "IT / server", "el": "IT / διακομιστές"}, "kitchen": {"en": "Kitchen / refrigeration", "el": "Κουζίνα / ψύξη"}, "lab": {"en": "Laboratory / medical", "el": "Εργαστήριο / ιατρικά"}, "industry": {"en": "Industry", "el": "Βιομηχανία"}, "home": {"en": "Home / other", "el": "Οικιακά / λοιπά"}};
   const devLibrary = [
-    { name: "Desktop PC", W: 120 },
-    { name: "Monitor", W: 30 },
-    { name: "TV LED 55\"", W: 120 },
-    { name: "Domestic refrigerator", W: 60 },
-    { name: "Microwave oven", W: 1200 },
-    { name: "Laser printer", W: 350 },
-    { name: "Server rack (small)", W: 700 },
-    { name: "Industrial control panel", W: 250 },
-    { name: "Small process motor", W: 1200 },
-    { name: "Chargers / small devices", W: 50 }
+    {"key": "pc", "cat": "office", "en": "Desktop PC", "el": "Επιτραπέζιος υπολογιστής", "W": 120},
+    {"key": "monitor", "cat": "office", "en": "Monitor", "el": "Οθόνη", "W": 30},
+    {"key": "tv55", "cat": "home", "en": "TV LED 55\"", "el": "Τηλεόραση LED 55\"", "W": 120},
+    {"key": "fridge", "cat": "kitchen", "en": "Domestic refrigerator", "el": "Οικιακό ψυγείο", "W": 60},
+    {"key": "microwave", "cat": "kitchen", "en": "Microwave oven", "el": "Φούρνος μικροκυμάτων", "W": 1200},
+    {"key": "laser", "cat": "office", "en": "Laser printer", "el": "Εκτυπωτής laser", "W": 350},
+    {"key": "rack_s", "cat": "it", "en": "Server rack (small)", "el": "Rack διακομιστών (μικρό)", "W": 700},
+    {"key": "ctrl_panel", "cat": "industry", "en": "Industrial control panel", "el": "Βιομηχανικός πίνακας αυτοματισμού", "W": 250},
+    {"key": "proc_motor", "cat": "industry", "en": "Small process motor", "el": "Μικρός κινητήρας διεργασίας", "W": 1200},
+    {"key": "chargers", "cat": "office", "en": "Chargers / small devices", "el": "Φορτιστές / μικροσυσκευές", "W": 50},
+    {"key": "laptop", "cat": "office", "en": "Laptop", "el": "Φορητός υπολογιστής", "W": 50},
+    {"key": "cad_ws", "cat": "office", "en": "CAD workstation", "el": "Σταθμός εργασίας CAD", "W": 250},
+    {"key": "monitor32", "cat": "office", "en": "Large monitor 32\"", "el": "Μεγάλη οθόνη 32\"", "W": 45},
+    {"key": "copier", "cat": "office", "en": "Multifunction copier", "el": "Πολυμηχάνημα φωτοαντιγραφικό", "W": 500},
+    {"key": "plotter", "cat": "office", "en": "Plotter", "el": "Plotter", "W": 250},
+    {"key": "projector", "cat": "office", "en": "Projector", "el": "Προβολικό", "W": 300},
+    {"key": "display55", "cat": "office", "en": "LED display 55\" (meeting room)", "el": "Οθόνη LED 55\" (αίθουσα συσκέψεων)", "W": 150},
+    {"key": "pos", "cat": "office", "en": "Cash register / POS", "el": "Ταμειακή / POS", "W": 100},
+    {"key": "switch", "cat": "it", "en": "Network switch / small rack", "el": "Switch δικτύου / μικρό rack", "W": 150},
+    {"key": "rack_3", "cat": "it", "en": "Server rack 3 kW", "el": "Rack διακομιστών 3 kW", "W": 3000},
+    {"key": "rack_5", "cat": "it", "en": "Server rack 5 kW", "el": "Rack διακομιστών 5 kW", "W": 5000},
+    {"key": "ups10", "cat": "it", "en": "UPS 10 kVA losses", "el": "Απώλειες UPS 10 kVA", "W": 600},
+    {"key": "coffee", "cat": "kitchen", "en": "Espresso / coffee machine", "el": "Μηχανή καφέ espresso", "W": 900},
+    {"key": "water", "cat": "kitchen", "en": "Water cooler / dispenser", "el": "Ψύκτης νερού", "W": 100},
+    {"key": "kettle", "cat": "kitchen", "en": "Kettle", "el": "Βραστήρας", "W": 2000},
+    {"key": "toaster", "cat": "kitchen", "en": "Toaster", "el": "Τοστιέρα", "W": 1100},
+    {"key": "vending", "cat": "kitchen", "en": "Vending machine", "el": "Αυτόματος πωλητής", "W": 400},
+    {"key": "disp_fridge", "cat": "kitchen", "en": "Display fridge, plug-in", "el": "Βιτρίνα ψυγείο, αυτόνομη", "W": 700},
+    {"key": "freezer", "cat": "kitchen", "en": "Chest freezer", "el": "Καταψύκτης μπαούλο", "W": 300},
+    {"key": "ice", "cat": "kitchen", "en": "Ice maker", "el": "Παγομηχανή", "W": 700},
+    {"key": "dishwasher", "cat": "kitchen", "en": "Commercial dishwasher (under-counter)", "el": "Επαγγελματικό πλυντήριο πιάτων (πάγκου)", "W": 1500},
+    {"key": "oven", "cat": "kitchen", "en": "Electric oven", "el": "Ηλεκτρικός φούρνος", "W": 2500},
+    {"key": "hob", "cat": "kitchen", "en": "Induction hob (under hood)", "el": "Εστία επαγωγής (κάτω από απορροφητήρα)", "W": 1500},
+    {"key": "incubator", "cat": "lab", "en": "Incubator", "el": "Επωαστικός κλίβανος", "W": 400},
+    {"key": "lab_fridge", "cat": "lab", "en": "Laboratory refrigerator", "el": "Ψυγείο εργαστηρίου", "W": 300},
+    {"key": "centrifuge", "cat": "lab", "en": "Centrifuge", "el": "Φυγόκεντρος", "W": 500},
+    {"key": "autoclave", "cat": "lab", "en": "Autoclave (bench)", "el": "Αυτόκαυστο (πάγκου)", "W": 2000},
+    {"key": "m1_1", "cat": "industry", "en": "Motor 1.1 kW in room (P/η)", "el": "Κινητήρας 1,1 kW μέσα στον χώρο (P/η)", "W": 1340},
+    {"key": "m2_2", "cat": "industry", "en": "Motor 2.2 kW in room (P/η)", "el": "Κινητήρας 2,2 kW μέσα στον χώρο (P/η)", "W": 2590},
+    {"key": "m4", "cat": "industry", "en": "Motor 4 kW in room (P/η)", "el": "Κινητήρας 4 kW μέσα στον χώρο (P/η)", "W": 4600},
+    {"key": "m7_5", "cat": "industry", "en": "Motor 7.5 kW in room (P/η)", "el": "Κινητήρας 7,5 kW μέσα στον χώρο (P/η)", "W": 8430},
+    {"key": "m11", "cat": "industry", "en": "Motor 11 kW in room (P/η)", "el": "Κινητήρας 11 kW μέσα στον χώρο (P/η)", "W": 12200},
+    {"key": "vfd15", "cat": "industry", "en": "Inverter 15 kW losses (~3%)", "el": "Απώλειες inverter 15 kW (~3%)", "W": 450},
+    {"key": "comp7_5", "cat": "industry", "en": "Air compressor 7.5 kW in room", "el": "Αεροσυμπιεστής 7,5 kW μέσα στον χώρο", "W": 8400},
+    {"key": "comp15", "cat": "industry", "en": "Air compressor 15 kW in room", "el": "Αεροσυμπιεστής 15 kW μέσα στον χώρο", "W": 16500},
+    {"key": "hpu5_5", "cat": "industry", "en": "Hydraulic power unit 5.5 kW", "el": "Υδραυλικό συγκρότημα 5,5 kW", "W": 6200},
+    {"key": "welder", "cat": "industry", "en": "Welding station (average)", "el": "Θέση συγκόλλησης (μέσο φορτίο)", "W": 2000},
+    {"key": "cnc", "cat": "industry", "en": "CNC machine (average)", "el": "Μηχανή CNC (μέσο φορτίο)", "W": 3000},
+    {"key": "packer", "cat": "industry", "en": "Packaging machine", "el": "Μηχανή συσκευασίας", "W": 1500},
+    {"key": "conveyor", "cat": "industry", "en": "Conveyor 0.75 kW", "el": "Μεταφορική ταινία 0,75 kW", "W": 900},
+    {"key": "printer3d", "cat": "industry", "en": "3D printer", "el": "3D εκτυπωτής", "W": 250},
+    {"key": "trafo100", "cat": "industry", "en": "Transformer 100 kVA losses", "el": "Απώλειες μετασχηματιστή 100 kVA", "W": 1800},
+    {"key": "fl_charger", "cat": "industry", "en": "Forklift battery charger (losses)", "el": "Φορτιστής κλαρκ (απώλειες)", "W": 900},
+    {"key": "console", "cat": "home", "en": "Game console", "el": "Κονσόλα παιχνιδιών", "W": 150},
+    {"key": "iron", "cat": "home", "en": "Iron", "el": "Σίδερο", "W": 1000},
+    {"key": "washer", "cat": "home", "en": "Washing machine", "el": "Πλυντήριο ρούχων", "W": 500},
+    {"key": "dryer", "cat": "home", "en": "Tumble dryer", "el": "Στεγνωτήριο", "W": 800},
+    {"key": "hairdryer", "cat": "home", "en": "Hair dryer (salon)", "el": "Πιστολάκι μαλλιών (κομμωτήριο)", "W": 1200}
   ];
+  const devName = (d) => (d ? (d[currentLang] || d.en || d.name || "") : "");
+  const devByKey = (k) => devLibrary.find((d) => d.key === k);
 
   const devSel = $("devLib");
   const devTableBody = document.querySelector("#devTable tbody");
 
-  function addDeviceRow(device) {
+  function addDeviceRow(device, duty = 1) {
     const tr = document.createElement("tr");
+    const lib = device.key ? devByKey(device.key) : null;
+    tr.dataset.key = device.key || "";
+    tr.dataset.name = lib ? "" : (device.name || "");
     tr.innerHTML = `
-      <td>${device.name}</td>
-      <td><input class="dv-W" type="number" step="10" value="${device.W}"></td>
-      <td><input class="dv-duty" type="number" step="0.05" value="1"></td>
-      <td><button class="ghost dv-del" type="button">x</button></td>
+      <td class="dv-name"></td>
+      <td><input class="dv-W" type="number" step="10" value="${device.W}" aria-label="W"></td>
+      <td><input class="dv-duty" type="number" step="0.05" value="${duty}" aria-label="duty"></td>
+      <td><button class="ghost dv-del" type="button" aria-label="x">x</button></td>
     `;
+    tr.querySelector(".dv-name").textContent = lib ? devName(lib) : (device.name === "Custom" ? tr_("Custom", "Χειροκίνητο") : (device.name || ""));
     tr.querySelector(".dv-del")?.addEventListener("click", () => { tr.remove(); setSelectedRoomDirty(true); renderLiveChecks(); });
     tr.querySelectorAll("input").forEach((el) => {
       el.addEventListener("input", () => setSelectedRoomDirty(true));
@@ -2275,195 +2809,13 @@
   }
 
   function calcLoad() {
-    enforceWallConsistency();
-    const L = num("L", 0);
-    const Wm = num("W", 0);
-    const H = num("H", 0);
-    const Afloor = L * Wm;
-    const Aroof = Afloor;
-    const V = L * Wm * H;
-
     const mode = str("Mode", "cool");
-    const Tin = num("Tin", 24);
-    const RHin = num("RHin", 45);
-    const Tout = num("Tout", 36);
-    const RHout = num("RHout", 40);
-
-    const dTbase = Math.max(0, mode === "cool" ? Tout - Tin : Tin - Tout);
-
-    const Uwall = str("UwallPreset") === "custom" ? num("UwallCustom", 0.7) : parseFloat(str("UwallPreset", "0.7"));
-    const Uwin = str("UwinPreset") === "custom" ? num("UwinCustom", 2.8) : parseFloat(str("UwinPreset", "2.8"));
-    const Uroof = str("UroofPreset") === "custom" ? num("UroofCustom", 0.35) : parseFloat(str("UroofPreset", "0.35"));
-
-    const floorPreset = str("UfloorPreset", "g|0.50");
-    let Ufloor = 0.5;
-    let floorBoundary = "ground";
-
-    if (floorPreset === "custom") {
-      Ufloor = num("UfloorCustom", 0.5);
-    } else if (floorPreset.includes("|")) {
-      const [b, u] = floorPreset.split("|");
-      Ufloor = parseFloat(u);
-      floorBoundary = (b || "g").trim().toLowerCase() === "p" ? "pilotis" : "ground";
-      if (!Number.isFinite(Ufloor)) Ufloor = 0.5;
-    } else {
-      Ufloor = parseFloat(floorPreset);
-      if (!Number.isFinite(Ufloor)) Ufloor = 0.5;
-    }
-
-    const SHGC = num("SHGCpreset", 0.7);
-    const Lext = num("LwallExt", 0);
-    const Lunh = num("LwallUnh", 0);
-    const Tadj = num("Tadj", mode === "cool" ? 30 : 12);
-
-    const AextWall = Lext * H;
-    const AunhWall = Lunh * H;
-
-    let Awin = 0;
-    let QwinCond = 0;
-    let QwinSolar = 0;
-
-    const orientMap = { N: 120, NE: 220, E: 350, SE: 380, S: 400, SW: 450, W: 500, NW: 220 };
-
-    document.querySelectorAll("#winTable tbody tr").forEach((tr) => {
-      const o = tr.querySelector(".wg-orient")?.value || "S";
-      const a = parseFloat(tr.querySelector(".wg-area")?.value) || 0;
-      const sh = parseFloat(tr.querySelector(".wg-shade")?.value) || 1;
-
-      Awin += a;
-      QwinCond += a * Uwin * dTbase;
-      if (mode === "cool") {
-        QwinSolar += a * SHGC * (orientMap[o] || 350) * clamp(sh, 0, 1);
-      }
-    });
-
-    const AextNet = Math.max(0, AextWall - Awin);
-    const QwallExt = AextNet * Uwall * dTbase;
-    const QwallUnh = AunhWall * Uwall * Math.max(0, mode === "cool" ? Tadj - Tin : Tin - Tadj);
-    let RpE = clamp(num("RoofPctExt", 100) / 100, 0, 1);
-    let RpU = clamp(num("RoofPctUnh", 0) / 100, 0, 1);
-    let RpH = clamp(num("RoofPctHeated", 0) / 100, 0, 1);
-
-    let FpG = clamp(num("FloorPctGround", 100) / 100, 0, 1);
-    let FpU = clamp(num("FloorPctUnh", 0) / 100, 0, 1);
-    let FpH = clamp(num("FloorPctHeated", 0) / 100, 0, 1);
-
-    const roofSum = RpE + RpU + RpH;
-    if (roofSum > 1) {
-      RpE /= roofSum; RpU /= roofSum; RpH /= roofSum;
-    }
-
-    const floorSum = FpG + FpU + FpH;
-    if (floorSum > 1) {
-      FpG /= floorSum; FpU /= floorSum; FpH /= floorSum;
-    }
-
-    const Tattic = num("Tattic", mode === "cool" ? 35 : 8);
-    const Tground = num("Tground", mode === "cool" ? 15 : 12);
-
-    const QroofExt = (Aroof * RpE) * Uroof * dTbase;
-    const QroofUnh = (Aroof * RpU) * Uroof * Math.max(0, mode === "cool" ? Tattic - Tin : Tin - Tattic);
-
-    const dTfloorGround = floorBoundary === "pilotis"
-      ? dTbase
-      : (mode === "cool" ? 0 : Math.max(0, Tin - Tground));
-
-    const QfloorG = (Afloor * FpG) * Ufloor * dTfloorGround;
-    const QfloorU = (Afloor * FpU) * Ufloor * Math.max(0, mode === "cool" ? Tadj - Tin : Tin - Tadj);
-
-    const ACHinf = num("ACHinf", 0);
-    const ACHnat = num("ACHnat", 0);
-    const mechMode = str("MechMode", "ach");
-
-    let ACHmech = 0;
-    const Qmech = num("Qmech", 0) / 3600;
-    if (mechMode === "ach") {
-      ACHmech = num("ACHmech", 0);
-    }
-
-    const Vdot = ((ACHinf + ACHnat + ACHmech) * V / 3600) + Qmech;
-    const mdot = Vdot * rho;
-
-    const win = wTRH(Tin, RHin);
-    const wout = wTRH(Tout, RHout);
-    const hin = hTw(Tin, win);
-    const hout = hTw(Tout, wout);
-
-    const dTv = Math.abs(Tout - Tin);
-    const QventS = mdot * cp * dTv * 1000;
-    let QventL = 0;
-    if (mode === "cool") {
-      const Qt = mdot * Math.max(0, hout - hin) * 1000;
-      QventL = Math.max(0, Qt - QventS);
-    }
-
-    const VdotM = ((ACHmech * V) / 3600) + Qmech;
-    const mdotM = VdotM * rho;
-    const QmechS = mdotM * cp * dTv * 1000;
-    let QmechL = 0;
-    if (mode === "cool") {
-      const QtM = mdotM * Math.max(0, hout - hin) * 1000;
-      QmechL = Math.max(0, QtM - QmechS);
-    }
-
-    const nPeople = num("nPeople", 0);
-    const [Ps, Pl] = str("PeopleActivity", "100|75").split("|").map(parseFloat);
-    const QpS = nPeople * (Number.isFinite(Ps) ? Ps : 100);
-    const QpL = nPeople * (Number.isFinite(Pl) ? Pl : 75);
-
-    const Qlight = num("LightingWm2", 8) * Afloor;
-
-    let Qdev = 0;
-    document.querySelectorAll("#devTable tbody tr").forEach((tr) => {
-      const Wv = parseFloat(tr.querySelector(".dv-W")?.value) || 0;
-      const duty = clamp(parseFloat(tr.querySelector(".dv-duty")?.value) || 1, 0, 1);
-      Qdev += Wv * duty;
-    });
-
-    let sensible = {};
-    let latent = {};
-
-    if (mode === "cool") {
-      sensible = {
-        "External walls": QwallExt,
-        "Walls to unconditioned": QwallUnh,
-        "Roof to outdoor": QroofExt,
-        "Roof to unconditioned": QroofUnh,
-        "Windows conduction": QwinCond,
-        "Windows solar": QwinSolar,
-        "Floor to ground/pilotis": QfloorG,
-        "Floor to unconditioned": QfloorU,
-        "Ventilation sensible": QventS,
-        "Lighting": Qlight,
-        "Equipment": Qdev,
-        "People sensible": QpS
-      };
-
-      latent = {
-        "Ventilation latent": QventL,
-        "People latent": QpL
-      };
-    } else {
-      sensible = {
-        "External walls losses": QwallExt,
-        "Walls to unconditioned losses": QwallUnh,
-        "Roof to outdoor losses": QroofExt,
-        "Roof to unconditioned losses": QroofUnh,
-        "Windows conduction losses": QwinCond,
-        "Floor to ground/pilotis losses": QfloorG,
-        "Floor to unconditioned losses": QfloorU,
-        "Ventilation sensible losses": QventS
-      };
-      latent = {};
-    }
-
-    const Qs = Object.values(sensible).reduce((a, b) => a + b, 0);
-    const Ql = Object.values(latent).reduce((a, b) => a + b, 0);
-    const Qt = Qs + Ql;
+    const core = computeCore(mode);
+    const { Qs, Ql, Qt, sensible, latent, VdotM, QmechS, QmechL, Afloor } = core;
 
     const list = (parts) => Object.entries(parts)
       .filter(([, v]) => v > 1)
-      .map(([k, v]) => `<div class="rowline"><span>${compName(k)}</span><span>${fmtPower(v)}</span></div>`)
+      .map(([k, v]) => `<div class="rowline"><span>${compName(k)}</span><i class="rl-bar" title="${Qt > 0 ? ((100 * v) / Qt).toFixed(1) : 0}%"><b style="width:${Qt > 0 ? ((100 * v) / Qt).toFixed(1) : 0}%"></b></i><span>${fmtPower(v)}</span></div>`)
       .join("");
 
     const resultTitle = mode === "cool"
@@ -2476,6 +2828,7 @@
         <div class="kpi kpi-main">
           <div class="muted">${resultTitle}</div>
           <b>${fmtPower(Qt)}</b>
+          <div class="kpi-sub">${fmtSpecific(Qt, Afloor)}</div>
         </div>
 
         <div class="section">
@@ -2494,6 +2847,9 @@
           <h2>${tr("Totals", "Σύνολα")}</h2>
           <div class="rowline"><span>${tr("Total sensible", "Συνολικό αισθητό")}</span><span id="sumQsVal" data-w="${Qs}">${fmtPower(Qs)}</span></div>
           <div class="rowline"><span>${tr("Total latent", "Συνολικό λανθάνον")}</span><span id="sumQlVal" data-w="${Ql}">${fmtPower(Ql)}</span></div>
+          ${mode === "cool" && Qt > 0 ? `<div class="rowline"><span>SHR</span><span>${(Qs / Qt).toFixed(2)}</span></div>` : ""}
+          <div class="rowline"><span>${tr("Floor area", "Εμβαδόν δαπέδου")}</span><span>${Afloor.toFixed(1)} m²</span></div>
+          <div class="rowline"><span>${tr("Specific load", "Ειδικό φορτίο")}</span><span>${fmtSpecific(Qt, Afloor)}</span></div>
         </div>
 
         ${VdotM > 0 ? `
@@ -2506,6 +2862,8 @@
         ` : ""}
 
         ${mode === "heat" ? `<div class="warn">${currentLang==="el"?"Η θέρμανση υπολογίζει απώλειες κελύφους/αερισμού/αγωγιμότητας.":"Heating mode reports envelope/ventilation/conduction losses."}</div>` : ""}
+
+        <details class="lc-inputs"><summary>${tr("Input data used", "Δεδομένα εισόδου που χρησιμοποιήθηκαν")}</summary>${inputsTableHtml(captureInputs())}</details>
       `;
     }
 
@@ -2527,6 +2885,7 @@
 
     drawPie("pie", sensible, latent);
     syncSelectedRoomAfterCalculation();
+    scheduleAutosave();
     renderAssumptions();
     renderLiveChecks();
     renderPsychroSummary();
@@ -3037,7 +3396,7 @@
 
     if (roofSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά οροφής ξεπερνούν το 100%.":"Roof percentages exceed 100%.");
     if (floorSum > 100.01) lines.push(currentLang==="el"?"Τα ποσοστά δαπέδου ξεπερνούν το 100%.":"Floor percentages exceed 100%.");
-    if (wallSum > wallPerim + 0.01) lines.push(currentLang==="el"?"Τα μήκη τοίχων υπερβαίνουν το διαθέσιμο περίγραμμα χώρου.":"Wall lengths exceed the available room perimeter.");
+    if (!isAreaMode() && wallSum > wallPerim + 0.01) lines.push(currentLang==="el"?"Τα μήκη τοίχων υπερβαίνουν το διαθέσιμο περίγραμμα χώρου.":"Wall lengths exceed the available room perimeter.");
     if (wallExt < 0 || wallUnh < 0) lines.push(currentLang==="el"?"Τα μήκη τοίχων δεν μπορούν να είναι αρνητικά.":"Wall lengths cannot be negative.");
 
     const Aext = num("LwallExt", 0) * num("H", 0);
@@ -3090,11 +3449,27 @@
 
     $("addWinGrp")?.addEventListener("click", () => { addWindowRow(); setSelectedRoomDirty(true); });
 
+    // helper lists that only fill a numeric field
+    [["LightingPreset", "LightingWm2"], ["EquipPreset", "EquipWm2"]].forEach(([helper, target]) => {
+      $(helper)?.addEventListener("change", () => {
+        const v = $(helper).value;
+        if (v === "" || !$(target)) return;
+        $(target).value = v;
+        $(target).dispatchEvent(new Event("input", { bubbles: true }));
+        $(target).dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+
+    ["GeoMode", "L", "W", "Afloor", "H"].forEach((id) => {
+      $(id)?.addEventListener("input", syncDerivedUi);
+      $(id)?.addEventListener("change", () => { syncDerivedUi(); enforceWallConsistency(); });
+    });
+
     $("addDev")?.addEventListener("click", () => {
       const idx = parseInt(devSel?.value || "0", 10);
       const d = devLibrary[idx] || devLibrary[0];
       if (d) {
-        addDeviceRow(d);
+        addDeviceRow({ key: d.key, W: d.W });
         setSelectedRoomDirty(true);
       }
     });
@@ -3113,7 +3488,14 @@
     $("recalcQuick")?.addEventListener("click", calcLoad);
 
     $("addRoomBtn")?.addEventListener("click", addCurrentRoom);
-    $("clearRoomsBtn")?.addEventListener("click", () => { spaces = []; clearSelectedRoomState(); renderSpaces(); });
+    $("clearRoomsBtn")?.addEventListener("click", () => {
+      if (spaces.length && !confirm(tr("Delete all saved rooms?", "Να διαγραφούν όλοι οι αποθηκευμένοι χώροι;"))) return;
+      spaces = []; clearSelectedRoomState(); renderSpaces();
+    });
+    $("lcSaveProj")?.addEventListener("click", saveProjectFile);
+    $("lcOpenProj")?.addEventListener("click", () => $("lcOpenFile")?.click());
+    $("lcOpenFile")?.addEventListener("change", (e) => { openProjectFile(e.target.files?.[0]); e.target.value = ""; });
+    $("lcNewProj")?.addEventListener("click", newStudy);
     $("exportLoadPdfBtn")?.addEventListener("click", exportLoadsPdf);
     $("exportLoadDetailedPdfBtn")?.addEventListener("click", exportLoadsDetailedPdf);
     $("loadRoomBtn")?.addEventListener("click", loadSelectedRoom);
@@ -3158,20 +3540,23 @@
   }
 
   function initData() {
-    devLibrary.forEach((d, i) => {
-      const op = document.createElement("option");
-      op.value = String(i);
-      op.textContent = `${d.name} (${d.W} W)`;
-      devSel?.appendChild(op);
-    });
-    if (devSel) devSel.selectedIndex = 0;
+    fillDeviceSelect();
 
     addWindowRow("S", 1.5, 0.7);
     addWindowRow("W", 2.0, 1.0);
     addWindowRow("E", 1.0, 1.0);
     addWindowRow("N", 0.5, 1.0);
 
-    addDeviceRow({ name: "Desktop PC", W: 120 });
+    addDeviceRow({ key: "pc", W: 120 });
+  }
+
+  function fillDeviceSelect() {
+    if (!devSel) return;
+    const v = devSel.value || "0";
+    devSel.innerHTML = Object.keys(DEV_CATS).map((c) => `<optgroup label="${DEV_CATS[c][currentLang]}">${
+      devLibrary.map((d, i) => (d.cat === c ? `<option value="${i}">${devName(d)} (${d.W} W)</option>` : "")).join("")
+    }</optgroup>`).join("");
+    devSel.value = v;
   }
 
   function initPsychroHelpText() {
@@ -3199,12 +3584,167 @@
     });
   }
 
+
+  // ---------- project persistence (autosave + project file) ----------
+  const LS_KEY = "lc.project.v1";
+  let autosaveTimer = null;
+  let restoring = false;
+
+  function projectState() {
+    return {
+      app: "HVAC Load Calculator",
+      format: 1,
+      savedAt: new Date().toISOString(),
+      projectName: str("projectName", ""),
+      lang: currentLang,
+      current: captureInputs(),
+      spaces: spaces.map((x) => ({ ...x })),
+      selectedRoomId
+    };
+  }
+
+  function scheduleAutosave() {
+    if (restoring) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(projectState())); } catch (e) { /* storage blocked */ }
+    }, 500);
+  }
+
+  function showNote(html, withNew = false) {
+    const n = $("lcNote");
+    if (!n) return;
+    n.innerHTML = `<span>${html}</span>${withNew ? `<button type="button" class="ghost" id="lcNoteNew">${tr("Start a new study", "Νέα μελέτη")}</button>` : ""}<button type="button" class="ghost" id="lcNoteClose" aria-label="${tr("Close", "Κλείσιμο")}">×</button>`;
+    n.hidden = false;
+    $("lcNoteClose")?.addEventListener("click", () => { n.hidden = true; });
+    $("lcNoteNew")?.addEventListener("click", newStudy);
+  }
+
+  // Rebuilds every room with the current calculation model, then restores the form.
+  function restoreProject(st) {
+    if (!st || typeof st !== "object" || !st.current) throw new Error("not a project");
+    restoring = true;
+    try {
+      if (st.lang && $("Lang") && st.lang !== currentLang && (st.lang === "el" || st.lang === "en")) {
+        $("Lang").value = st.lang;
+        currentLang = st.lang;
+        applyLanguage();
+      }
+      if ($("projectName")) $("projectName").value = st.projectName || "";
+      clearSelectedRoomState();
+      spaces = [];
+      (Array.isArray(st.spaces) ? st.spaces : []).forEach((r) => {
+        if (!r || !r.inputs) return;
+        applyInputSnapshot(r.inputs);
+        const rebuilt = buildRoomState(r.id || `r${Date.now()}${Math.floor(Math.random() * 1000)}`, r.name || "?");
+        if (r.psychro) rebuilt.psychro = r.psychro;
+        spaces.push(rebuilt);
+      });
+      applyInputSnapshot(st.current);
+      if (st.selectedRoomId && spaces.some((x) => x.id === st.selectedRoomId)) {
+        selectedRoomId = st.selectedRoomId;
+        selectedRoomLoadedSignature = captureSnapshotSignature();
+        selectedRoomDirty = false;
+      }
+      renderSpaces();
+      renderLiveChecks();
+    } finally {
+      restoring = false;
+    }
+    scheduleAutosave();
+  }
+
+  const fileSafe = (x) => (String(x || "").trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").slice(0, 80) || "HVAC-study");
+
+  function saveProjectFile() {
+    const st = projectState();
+    const json = JSON.stringify(st).replace(/</g, "\\u003c");
+    const app = location.href.split("#")[0];
+    const name = esc(projectNameValue());
+    const html = `<!doctype html><html lang="${currentLang}"><head><meta charset="utf-8"><title>${name} — HVAC Load Calculator</title></head>`
+      + `<body style="font-family:system-ui,sans-serif;padding:40px;color:#132033">`
+      + `<p>${tr("Opening", "Άνοιγμα της μελέτης")} «${name}» ${tr("in HVAC Load Calculator…", "στο HVAC Load Calculator…")}</p>`
+      + `<p><a id="go" href="${esc(app)}">${tr("If it does not open automatically, click here.", "Αν δεν ανοίξει αυτόματα, πάτα εδώ.")}</a></p>`
+      + `<p style="color:#4A5A6C;font-size:14px">${tr("HVAC Load Calculator project file. You can also load it with “Open project file” inside the tool.", "Αρχείο έργου HVAC Load Calculator. Μπορείς επίσης να το φορτώσεις με το «Άνοιγμα έργου» μέσα στο εργαλείο.")}</p>`
+      + `<script id="lcproj" type="application/json">${json}<\/script>`
+      + `<script>(function(){var A=${JSON.stringify(app)};var j=document.getElementById("lcproj").textContent;var b=btoa(unescape(encodeURIComponent(j)));var u=A+"#lcproj="+encodeURIComponent(b);document.getElementById("go").href=u;location.replace(u);})();<\/script>`
+      + `</body></html>`;
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fileSafe(projectNameValue())} ${stamp}.lcproj.html`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    showNote(tr("Project file saved. Keep it in the project folder — double-click opens the calculator filled in.", "Το αρχείο έργου αποθηκεύτηκε. Βάλ' το στον φάκελο του έργου — με διπλό κλικ ανοίγει το υπολογιστικό συμπληρωμένο."));
+  }
+
+  function parseProjectText(text) {
+    const t = String(text || "").trim();
+    if (t.startsWith("{")) return JSON.parse(t);
+    const doc = new DOMParser().parseFromString(t, "text/html");
+    const node = doc.getElementById("lcproj");
+    if (!node) throw new Error("no project data");
+    return JSON.parse(node.textContent);
+  }
+
+  function openProjectFile(file) {
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const st = parseProjectText(rd.result);
+        if (spaces.length && !confirm(tr("Replace the current study with the file?", "Να αντικατασταθεί η τρέχουσα μελέτη από το αρχείο;"))) return;
+        restoreProject(st);
+        showNote(`${tr("Opened", "Άνοιξε")}: «${esc(st.projectName || file.name)}»`);
+      } catch (e) {
+        showNote(tr("This file is not a HVAC Load Calculator project.", "Το αρχείο δεν είναι έργο του HVAC Load Calculator."));
+      }
+    };
+    rd.readAsText(file);
+  }
+
+  function newStudy() {
+    if (!confirm(tr("Start a new study? Unsaved data in this browser will be cleared (project files you saved are not affected).", "Νέα μελέτη; Θα σβηστούν τα δεδομένα αυτού του browser (τα αρχεία έργου που έχεις αποθηκεύσει δεν επηρεάζονται)."))) return;
+    try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ }
+    clearTimeout(autosaveTimer);
+    restoring = true; // no autosave before reload
+    location.replace(location.href.split("#")[0]);
+  }
+
+  function loadInitialProject() {
+    const h = location.hash || "";
+    if (h.startsWith("#lcproj=")) {
+      try {
+        const st = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(h.slice(8))))));
+        restoreProject(st);
+        showNote(`${tr("Opened project file", "Άνοιξε το αρχείο έργου")}: «${esc(st.projectName || tr("Untitled", "Χωρίς όνομα"))}»`);
+      } catch (e) {
+        showNote(tr("Could not read the project from the link.", "Δεν ήταν δυνατή η ανάγνωση του έργου από τον σύνδεσμο."));
+      }
+      try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) { /* ignore */ }
+      return;
+    }
+    let raw = null;
+    try { raw = localStorage.getItem(LS_KEY); } catch (e) { raw = null; }
+    if (!raw) return;
+    try {
+      const st = JSON.parse(raw);
+      restoreProject(st);
+      const when = st.savedAt ? new Date(st.savedAt).toLocaleString(currentLang === "el" ? "el-GR" : "en-GB") : "";
+      showNote(`${tr("Continuing where you left off", "Συνεχίζεις από εκεί που είχες μείνει")}${when ? ` (${when})` : ""}.`, true);
+    } catch (e) { /* corrupt autosave: ignore */ }
+  }
+
   function bootstrap() {
     try {
       bindCustomSelect("UwallPreset", "UwallCustom");
       bindCustomSelect("UwinPreset", "UwinCustom");
       bindCustomSelect("UroofPreset", "UroofCustom");
       bindCustomSelect("UfloorPreset", "UfloorCustom");
+      bindCustomSelect("UwallUnhPreset", "UwallUnhCustom");
 
       bindPercentGroup(["RoofPctExt", "RoofPctUnh", "RoofPctHeated"], "roofPctHint", "Roof");
       bindPercentGroup(["FloorPctGround", "FloorPctUnh", "FloorPctHeated"], "floorPctHint", "Floor");
@@ -3218,9 +3758,7 @@
       currentLang = str("Lang", "el");
       applyLanguage();
 
-      if ($("H") && $("H_display")) {
-        $("H_display").value = $("H").value;
-      }
+      syncDerivedUi();
 
       applyModeDefaults();
       applyCity();
@@ -3229,6 +3767,8 @@
       syncPsychroUiState();
       renderSpaces();
       showLoadsPane();
+      loadInitialProject();
+      ["input", "change", "click"].forEach((ev) => document.addEventListener(ev, scheduleAutosave, true));
     } catch (err) {
       console.error("Initialization error:", err);
       const host = $("result");
@@ -3278,14 +3818,14 @@
   }
 
   var HELP = [
-    ["Mode, units and city preset.", "Λειτουργία, μονάδες και πόλη."],
-    ["Internal room dimensions.", "Εσωτερικές διαστάσεις χώρου."],
-    ["City fills outdoor values; edit if needed.", "Η πόλη συμπληρώνει τα εξωτερικά· άλλαξέ τα αν χρειάζεται."],
-    ["External wall lengths and U value.", "Μήκη εξωτερικών τοίχων και U."],
-    ["One group per orientation.", "Μία ομάδα ανά προσανατολισμό."],
-    ["Percentages must add up to 100%.", "Τα ποσοστά πρέπει να αθροίζουν 100%."],
-    ["Infiltration and fresh air.", "Διείσδυση και νωπός αέρας."],
-    ["People, lighting, equipment.", "Άτομα, φωτισμός, συσκευές."]
+    ["Mode, display units (kW or BTU/h) and city.", "Λειτουργία, μονάδες (kW ή BTU/h) και πόλη."],
+    ["Length × width, or the floor area straight from CAD.", "Μήκος × πλάτος ή απευθείας το εμβαδόν από το CAD."],
+    ["The city fills the outdoor values; edit them if needed.", "Η πόλη συμπληρώνει τα εξωτερικά· άλλαξέ τα αν χρειάζεται."],
+    ["External walls and walls to unconditioned spaces, each with its own build-up.", "Εξωτερικοί τοίχοι και τοίχοι προς μη κλιματιζόμενο, ο καθένας με τη δική του διατομή."],
+    ["One group per orientation; internal windows go “to unconditioned space”.", "Μία ομάδα ανά προσανατολισμό· τα εσωτερικά παράθυρα «προς μη κλιματιζόμενο»."],
+    ["Roof and floor percentages must add up to 100%.", "Τα ποσοστά οροφής και δαπέδου πρέπει να αθροίζουν 100%."],
+    ["Infiltration, natural ventilation and fresh air.", "Διείσδυση, φυσικός αερισμός και νωπός αέρας."],
+    ["People, lighting, equipment per m² and devices.", "Άτομα, φωτισμός, εξοπλισμός ανά m² και συσκευές."]
   ];
 
   function focusFirst(sec) {
@@ -3421,6 +3961,28 @@
       syncPsy();
     }
     render();
+    initStickySide();
+  }
+
+  // Right column follows the page scroll: when it is taller than the window it scrolls with the
+  // page until its end is visible, and on the way up it comes back down until its top is visible.
+  function initStickySide() {
+    var side = document.querySelector(".workspace > .side");
+    if (!side) return;
+    var top = 16, lastY = window.scrollY;
+    var wide = function () { return window.matchMedia("(min-width: 1120px)").matches; };
+    var apply = function () {
+      if (!wide()) { side.style.top = ""; return; }
+      var minTop = Math.min(16, window.innerHeight - side.offsetHeight - 16);
+      var y = window.scrollY, dy = y - lastY;
+      lastY = y;
+      top = Math.max(minTop, Math.min(16, top - dy));
+      side.style.top = top + "px";
+    };
+    window.addEventListener("scroll", apply, { passive: true });
+    window.addEventListener("resize", apply);
+    if (window.ResizeObserver) new ResizeObserver(apply).observe(side);
+    apply();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(init, 0); });
