@@ -267,9 +267,9 @@ with sync_playwright() as p:
     setv(page, "#PS_SA_RH_mode", "manual"); setv(page, "#PS_RHsa", 92); setv(page, "#PS_Tsa", 14)
     click(page, "#PS_Recalc"); page.wait_for_timeout(200)
     mix = page.evaluate("() => document.getElementById('psychroMix').innerText")
-    check("direct fresh air: coil inlet = room air (no double counting)", "24.0 degC" in mix, mix[:160].replace("\n", " | "))
+    check("direct fresh air: coil inlet = room air (no double counting)", re.search(r"Αέρας είσοδος στοιχείου\s*24\.0 °C", mix) is not None, mix[:160].replace("\n", " | "))
     sheet = page.evaluate("() => document.getElementById('coilSheet').innerText")
-    q = page.evaluate("() => { const m = document.getElementById('psychroMix').innerText.match(/Φορτίο στοιχείου\\s*([\\d.]+) kW/); return m ? parseFloat(m[1]) : null; }")
+    q = page.evaluate("() => { const m = document.getElementById('psychroMix').innerText.match(/Ισχύς στοιχείου\\s*([\\d.]+) kW/); return m ? parseFloat(m[1]) : null; }")
     vw = re.search(r"Παροχή νερού\s*([\d.]+) m³/h", sheet)
     exp_vw = q * 1000 / (4186 * 5) * 3.6 if q else None
     check("coil sheet: water flow = Q / (4.186 · ΔT)", vw and exp_vw and abs(float(vw.group(1)) - exp_vw) < 0.02, f"{vw.group(1) if vw else None} vs {exp_vw}")
@@ -279,9 +279,14 @@ with sync_playwright() as p:
     frac = re.search(r"Ποσοστό OA: ([\d.]+)%", mix2)
     check("AHU fresh air: OA fraction never above 100%", frac and float(frac.group(1)) <= 100.0001, frac.group(1) if frac else mix2[:100])
     setv(page, "#OaMode", "direct"); click(page, "#btnCalc")
-    setv(page, "#PS_SA_RH_mode", "sat"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    setv(page, "#PS_ViewMode", "expert"); setv(page, "#PS_Tsa", 10); setv(page, "#PS_SA_RH_mode", "sat"); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
     sheet = page.evaluate("() => document.getElementById('coilSheet').innerText")
     check("coil sheet: saturated supply flagged as not achievable", "ΜΗ εφικτό" in sheet, sheet[:120].replace("\n", " | "))
+    # simple view explains results and checks room humidity
+    setv(page, "#PS_ViewMode", "simple"); setv(page, "#PS_Tsa", 14); click(page, "#PS_Recalc"); page.wait_for_timeout(200)
+    mix = page.evaluate("() => document.getElementById('psychroMix').innerText")
+    status = page.evaluate("() => document.getElementById('psyStatus').innerText")
+    check("simple view: humidity check and loads status shown", ("υγρασία του χώρου" in mix) and ("Qs" in status) and ("Νωπός" in status), status.replace("\n", " | ")[:160])
     click(page, "#closePsychro")
 
     # 15. AHU grouping: coil for the sum of the AHU's rooms
@@ -299,6 +304,28 @@ with sync_playwright() as p:
     n_rooms = page.evaluate("() => Array.from(document.querySelectorAll('#spacesTree .space-row')).filter(r => r.innerText.includes('ΚΚΜ: ΚΚΜ-1')).length")
     check("AHU group: coil option, summed room sensible and fresh air", has and m and abs(float(m.group(1)) - qs_sum) < 0.02 and f"νωπός {n_rooms * 100} m³/h" in mix, f"{m.group(1) if m else None} vs {qs_sum:.2f}; {has}; " + mix[:300].replace("\n", " | "))
     click(page, "#closePsychro")
+
+    # 16. guided flow: going back keeps the ticks and "Next" jumps to the first unchecked section
+    page.evaluate("window.scrollTo(0,0)")
+    for k in range(3):
+        page.evaluate("() => { const b = document.querySelector('#loadsMain > .section.lc-active .lc-next button'); if (b) b.click(); }")
+        page.wait_for_timeout(150)
+    page.focus("#loadsMain > .section:nth-of-type(2) input:not([disabled]), #L")
+    page.wait_for_timeout(150)
+    page.evaluate("() => { const b = document.querySelector('#loadsMain > .section.lc-active .lc-next button'); if (b) b.click(); }")
+    page.wait_for_timeout(200)
+    st = page.evaluate("""() => Array.from(document.querySelectorAll('#loadsMain > .section')).map(s => (s.classList.contains('lc-done') ? 'D' : '-') + (s.classList.contains('lc-active') ? 'A' : ''))""")
+    check("guided flow: ticks kept, Next goes to first unchecked section", st[:3] == ["D", "D", "D"] and st[3] == "-A", str(st))
+
+    # 17. engineer name and per-m² column in the detailed report
+    setv(page, "#engineerName", "Κ. Μηχανικός, ΜΜ")
+    with ctx.expect_page() as pi:
+        click(page, "#exportLoadDetailedPdfBtn")
+    rp = pi.value; rp.wait_for_timeout(300)
+    t = rp.evaluate("document.body.textContent")
+    css = rp.evaluate("Array.from(document.styleSheets).map(x => Array.from(x.cssRules).map(r => r.cssText).join(' ')).join(' ')")
+    check("report: engineer name, W/m² and BTU/h·m² per component, bars printable", "Κ. Μηχανικός, ΜΜ" in t and "BTU/h·m²" in t and "print-color-adjust" in css, "")
+    rp.close()
 
     # 13. Greek everywhere in the loads form
     allowed = set("""U SHGC ACH RH CAD LED PVC PU PIR XPS EPS ETICS CNC UPS POS IT kW BTU h W m Qs Ql SHR TV PC D LED T8 low-e low Ytong sandwich
